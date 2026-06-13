@@ -1,0 +1,21 @@
+# Rust
+/target/
+Cargo.lock
+**/*.rs.bk
+*.swp
+*~
+.env
+.idea/
+.vscode/
+*.log
+*.orig
+*~
+
+# Dependency directories
+node_modules/
+jspm_packages/
+bower_components/
+
+# Misc
+.DS_Store
+Thumbs.db

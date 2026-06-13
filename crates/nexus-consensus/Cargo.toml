@@ -1,0 +1,32 @@
+[package]
+name = "nexus-consensus"
+version = "0.1.0"
+edition = "2021"
+description = "Consensus mechanism for NexusChain DAG"
+
+[dependencies]
+nexus-primitives = { path = "../nexus-primitives" }
+nexus-dag = { path = "../nexus-dag" }
+nexus-zkp = { path = "../nexus-zkp" }
+
+# Async
+tokio = { version = "1", features = ["full"] }
+async-trait = "0.1"
+
+# Crypto
+k256 = { version = "0.13", features = ["ecdsa"] }
+sha3 = "0.10"
+rand = "0.8"
+
+# Serialization
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# Utilities
+thiserror = "1"
+tracing = "0.1"
+dashmap = "5"
+parking_lot = "0.12"
+
+[dev-dependencies]
+tokio-test = "0.4"

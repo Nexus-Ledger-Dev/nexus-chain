@@ -1,0 +1,51 @@
+[package]
+name = "nexus-node"
+version = "0.1.0"
+edition = "2021"
+description = "NexusChain node implementation"
+
+[[bin]]
+name = "nexus"
+path = "src/main.rs"
+
+[dependencies]
+# Internal crates
+nexus-primitives = { path = "../nexus-primitives" }
+nexus-dag = { path = "../nexus-dag" }
+nexus-consensus = { path = "../nexus-consensus" }
+nexus-evm = { path = "../nexus-evm" }
+nexus-zkp = { path = "../nexus-zkp" }
+nexus-iso = { path = "../nexus-iso" }
+nexus-network = { path = "../nexus-network" }
+nexus-rpc = { path = "../nexus-rpc" }
+
+# CLI
+clap = { version = "4", features = ["derive"] }
+
+# Async
+tokio = { version = "1", features = ["full", "signal"] }
+futures = "0.3"
+
+# Config
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+toml = "0.8"
+
+# Logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+
+# Storage
+rocksdb = { version = "0.21", optional = true }
+
+# Utilities
+thiserror = "1"
+hex = "0.4"
+directories = "5"
+
+[features]
+default = []
+rocksdb = ["dep:rocksdb"]
+
+[dev-dependencies]
+tempfile = "3"

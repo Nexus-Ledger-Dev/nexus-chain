@@ -1,0 +1,16 @@
+[package]
+name = "nexus-dag"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "DAG consensus data structures for NexusChain"
+
+[dependencies]
+nexus-primitives = { workspace = true }
+serde = { workspace = true }
+tokio = { workspace = true }
+async-trait = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+parking_lot = "0.12"
+dashmap = "5.5"

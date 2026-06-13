@@ -1,0 +1,30 @@
+[package]
+name = "nexus-network"
+version = "0.1.0"
+edition = "2021"
+description = "P2P networking for NexusChain"
+
+[dependencies]
+nexus-primitives = { path = "../nexus-primitives" }
+nexus-dag = { path = "../nexus-dag" }
+nexus-consensus = { path = "../nexus-consensus" }
+
+# Networking
+libp2p = { version = "0.53", features = ["tcp", "noise", "yamux", "gossipsub", "kad", "identify", "tokio"] }
+
+# Async
+tokio = { version = "1", features = ["full"] }
+futures = "0.3"
+
+# Serialization
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+bincode = "1"
+
+# Utilities
+thiserror = "1"
+tracing = "0.1"
+dashmap = "5"
+
+[dev-dependencies]
+tokio-test = "0.4"

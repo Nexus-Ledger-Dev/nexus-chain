@@ -1,0 +1,100 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/nexus-primitives",
+    "crates/nexus-dag",
+    "crates/nexus-consensus",
+    "crates/nexus-evm",
+    "crates/nexus-zkp",
+    "crates/nexus-iso",
+    "crates/nexus-state",
+    "crates/nexus-network",
+    "crates/nexus-rpc",
+    "crates/nexus-node",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "Apache-2.0"
+repository = "https://github.com/nexuschain/nexus"
+authors = ["NexusChain Team"]
+
+[workspace.dependencies]
+# Async runtime
+tokio = { version = "1.38", features = ["full"] }
+async-trait = "0.1"
+futures = "0.3"
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+bincode = "1.3"
+
+# Cryptography
+sha3 = "0.10"
+blake3 = "1.5"
+k256 = { version = "0.13", features = ["ecdsa"] }
+rand = "0.8"
+hex = "0.4"
+
+# ZKP libraries
+ark-ff = "0.4"
+ark-ec = "0.4"
+ark-bn254 = "0.4"
+ark-groth16 = "0.4"
+ark-snark = "0.4"
+ark-std = "0.4"
+ark-serialize = "0.4"
+ark-relations = "0.4"
+ark-r1cs-std = "0.4"
+
+# EVM
+revm = { version = "9.0", features = ["std", "serde"] }
+alloy-primitives = "0.7"
+alloy-rlp = "0.3"
+
+# Networking
+libp2p = { version = "0.53", features = ["tokio", "gossipsub", "kad", "identify", "noise", "tcp", "yamux", "macros"] }
+
+# Storage
+rocksdb = "0.22"
+
+# Logging and metrics
+tracing = "0.1"
+tracing-subscriber = "0.3"
+metrics = "0.22"
+
+# Error handling
+thiserror = "1.0"
+anyhow = "1.0"
+
+# XML for ISO messages
+quick-xml = { version = "0.31", features = ["serialize"] }
+
+# Concurrency
+dashmap = "5.5"
+parking_lot = "0.12"
+
+# HTTP
+axum = { version = "0.7", features = ["json"] }
+
+# Regex
+regex = "1"
+
+# Internal crates
+nexus-primitives = { path = "crates/nexus-primitives" }
+nexus-dag = { path = "crates/nexus-dag" }
+nexus-consensus = { path = "crates/nexus-consensus" }
+nexus-evm = { path = "crates/nexus-evm" }
+nexus-zkp = { path = "crates/nexus-zkp" }
+nexus-iso = { path = "crates/nexus-iso" }
+nexus-state = { path = "crates/nexus-state" }
+nexus-network = { path = "crates/nexus-network" }
+nexus-rpc = { path = "crates/nexus-rpc" }
+nexus-node = { path = "crates/nexus-node" }
+
+[profile.release]
+lto = true
+codegen-units = 1
+opt-level = 3
