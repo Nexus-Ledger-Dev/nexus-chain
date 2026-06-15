@@ -55,37 +55,45 @@ pub struct Vertex {
 impl Vertex {
     /// Create a new vertex (unsigned)
     pub fn new(
+        validator: Address,
         parents: Vec<Hash>,
-        height: Height,
-        timestamp: Timestamp,
-        validator: ValidatorId,
-        transactions: Vec<Transaction>,
-        state_root: Hash,
-        receipts_root: Hash,
+        tx_hashes: Vec<Hash>,
+        epoch: u64,
+        height: u64,
     ) -> Self {
-        let tx_hashes: Vec<Hash> = transactions.iter()
-            .map(|tx| tx.hash())
-            .collect();
+        // Compute timestamp (current UNIX ms)
+        let timestamp = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_millis() as u64;
         
+        // Convert validator address to ValidatorId (pad zeroes)
+        let mut validator_id_bytes = [0u8; 32];
+        let addr_bytes = validator.as_bytes();
+        validator_id_bytes[0..addr_bytes.len()].copy_from_slice(addr_bytes);
+        let validator_id = ValidatorId::new(validator_id_bytes);
+        
+        // Compute merkle root from tx hashes
         let tx_root = compute_merkle_root(&tx_hashes);
         
+        // Compute vertex hash
         let hash = vertex_hash(
             &parents,
             &tx_hashes,
             timestamp,
-            &validator.0,
+            &validator_id.0,
         );
         
         Self {
             hash,
             parents,
-            height,
+            height: height as Height,
             timestamp,
-            validator,
-            transactions,
+            validator: validator_id,
+            transactions: Vec::new(), // transactions not stored in this simplified constructor
             tx_root,
-            state_root,
-            receipts_root,
+            state_root: Hash::ZERO,
+            receipts_root: Hash::ZERO,
             weight: 1, // Base weight
             signature: EcdsaSignature { r: [0; 32], s: [0; 32], v: 0 },
             version: nexus_primitives::PROTOCOL_VERSION,

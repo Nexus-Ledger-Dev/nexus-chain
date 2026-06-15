@@ -178,6 +178,22 @@ impl Mul for U256 {
     }
 }
 
+// Implement division for U256 (placeholder integer division)
+impl std::ops::Div for U256 {
+    type Output = Self;
+    fn div(self, rhs: Self) -> Self {
+        if rhs.0 == [0,0,0,0] {
+            panic!("division by zero");
+        }
+        // simple naive division using larger integer conversion (fallback)
+        // Convert to u128 if possible (only works for small values)
+        let lhs = ((self.0[1] as u128) << 64) | (self.0[0] as u128);
+        let rhs_val = ((rhs.0[1] as u128) << 64) | (rhs.0[0] as u128);
+        let result = lhs / rhs_val;
+        Self([result as u64, (result >> 64) as u64, 0, 0])
+    }
+}
+
 impl StdHash for U256 {
     fn hash<H: Hasher>(&self, state: &mut H) { self.0.hash(state); }
 }

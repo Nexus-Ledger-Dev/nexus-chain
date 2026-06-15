@@ -52,7 +52,7 @@ impl Proposal {
         for parent in &self.parents {
             data.extend_from_slice(parent.as_bytes());
         }
-        Hash(Keccak256::digest(&data).into())
+        Hash::new(Keccak256::digest(&data).into())
     }
 }
 
@@ -75,7 +75,7 @@ impl PrepareVote {
         data.push(0x01); // Prepare prefix
         data.extend_from_slice(&self.view.to_le_bytes());
         data.extend_from_slice(self.vertex_hash.as_bytes());
-        Hash(Keccak256::digest(&data).into())
+        Hash::new(Keccak256::digest(&data).into())
     }
 }
 
@@ -98,7 +98,7 @@ impl CommitVote {
         data.push(0x02); // Commit prefix
         data.extend_from_slice(&self.view.to_le_bytes());
         data.extend_from_slice(self.vertex_hash.as_bytes());
-        Hash(Keccak256::digest(&data).into())
+        Hash::new(Keccak256::digest(&data).into())
     }
 }
 
@@ -340,9 +340,7 @@ impl BftConsensus {
             voter: self.keys.address().clone(),
             view: state.view,
             vertex_hash: vertex_hash.clone(),
-            signature: self.keys.sign_hash(&Hash(Keccak256::digest(
-                [&[0x01], state.view.to_le_bytes().as_slice(), vertex_hash.as_bytes()].concat()
-            ).into())),
+            signature: self.keys.sign_hash(&Hash::new(Keccak256::digest(&[&[0x01], state.view.to_le_bytes().as_slice(), vertex_hash.as_bytes()].concat()).into())),
         };
         
         drop(state);
@@ -406,17 +404,14 @@ impl BftConsensus {
         let state = self.state.read();
         
         let vote = CommitVote {
-            voter: self.keys.address().clone(),
-            view: state.view,
-            vertex_hash: vertex_hash.clone(),
-            signature: self.keys.sign_hash(&Hash(Keccak256::digest(
-                [&[0x02], state.view.to_le_bytes().as_slice(), vertex_hash.as_bytes()].concat()
-            ).into())),
-        };
-        
+                    voter: self.keys.address().clone(),
+                    view: state.view,
+                    vertex_hash: vertex_hash.clone(),
+                    signature: self.keys.sign_hash(&Hash::new(Keccak256::digest(&[&[0x02], state.view.to_le_bytes().as_slice(), vertex_hash.as_bytes()].concat()).into()))
+                };
         drop(state);
         
-        self.on_commit(vote)
+        self.on_commit(vote).map(|_| ())
     }
     
     /// Handle commit vote

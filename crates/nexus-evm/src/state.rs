@@ -145,7 +145,7 @@ impl StateDb {
     
     /// Set contract code
     pub fn set_code(&self, address: &Address, code: Vec<u8>) {
-        let code_hash = Hash(Keccak256::digest(&code).into());
+        let code_hash = Hash::new(Keccak256::digest(&code).into());
         self.code.insert(code_hash.clone(), code);
         
         let mut account = self.get_account(address);
@@ -212,7 +212,7 @@ impl StateDb {
             hasher.update(entry.value().code_hash.as_bytes());
         }
         
-        let root = Hash(hasher.finalize().into());
+        let root = Hash::new(hasher.finalize().into());
         *self.state_root.write() = root.clone();
         
         // Clear dirty tracking
