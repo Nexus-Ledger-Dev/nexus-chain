@@ -1,10 +1,15 @@
 //! BFT Consensus for DAG finality
 
 use serde::{Deserialize, Serialize};
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
+use once_cell::sync::OnceCell;
+use std::sync::Mutex;
+use crate::iso_logger::IsoLogger;
 use std::sync::Arc;
 use parking_lot::RwLock;
 use tokio::sync::mpsc;
+
+static LOGGER: OnceCell<Mutex<IsoLogger>> = OnceCell::new();
 use sha3::{Digest, Keccak256};
 
 use nexus_primitives::{Address, Hash};
@@ -193,6 +198,10 @@ pub struct BftConsensus {
 }
 
 impl BftConsensus {
+    /// Public setter for test harnesses – replaces the internal round state.
+    pub fn set_state(&self, state: BftRoundState) {
+        *self.state.write() = state;
+    }
     /// Create new BFT consensus
     pub fn new(keys: ValidatorKeys, validator_set: Arc<RwLock<ValidatorSet>>) -> Self {
         Self {

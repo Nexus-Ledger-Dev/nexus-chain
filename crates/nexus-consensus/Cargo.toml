@@ -5,9 +5,13 @@ edition = "2021"
 description = "Consensus mechanism for NexusChain DAG"
 
 [dependencies]
+sha2 = "0.10"
+chrono = { version = "0.4", features = ["serde"] }
 nexus-primitives = { path = "../nexus-primitives" }
 nexus-dag = { path = "../nexus-dag" }
 nexus-zkp = { path = "../nexus-zkp" }
+
+nexus-iso = { path = "../nexus-iso", optional = true }
 
 # Async
 tokio = { version = "1", features = ["full"] }
@@ -30,3 +34,6 @@ parking_lot = "0.12"
 
 [dev-dependencies]
 tokio-test = "0.4"
+
+[features]
+hybrid_consensus = ["nexus-iso"]

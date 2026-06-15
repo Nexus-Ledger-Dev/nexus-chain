@@ -7,7 +7,7 @@ use parking_lot::RwLock;
 use tokio::sync::mpsc;
 use tracing::{debug, info, warn};
 
-use nexus_primitives::{Address, Hash, Transaction, TxType};
+use nexus_primitives::{Address, Hash, Transaction, TxType, Nonce, U256};
 use nexus_dag::{Dag, Vertex, VertexStatus};
 use crate::{ConsensusResult, ConsensusError, BftConsensus, ProofOfStake};
 
@@ -325,7 +325,15 @@ mod tests {
     fn test_transaction_pool() {
         let pool = TransactionPool::new(100);
         
-        let tx = Transaction::default();
+        let tx = Transaction::new_legacy(
+            1, // chain_id
+            Nonce::default(),
+            None, // to
+            U256::ZERO, // value
+            Vec::new(), // data
+            21000, // gas_limit
+            U256::from(1_000_000_000u64), // gas_price 1 gwei
+        );
         assert!(pool.add(tx.clone()));
         assert_eq!(pool.len(), 1);
         
@@ -344,7 +352,7 @@ mod tests {
     
     #[test]
     fn test_tx_priority() {
-        let mut tx = Transaction::default();
+        let mut tx = Transaction::new_legacy(0, 0, None, U256::ZERO, vec![], 21_000, U256::ZERO);
         
         tx.gas_price = nexus_primitives::U256::from(5_000_000_000u64); // 5 gwei
         assert_eq!(TxPriority::from_tx(&tx), TxPriority::Low);

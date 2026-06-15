@@ -9,6 +9,13 @@ pub mod validator;
 pub mod pos;
 pub mod bft;
 pub mod proposer;
+pub mod iso_logger;
+
+#[cfg(feature = "hybrid_consensus")]
+pub mod hybrid_consensus;
+
+#[cfg(feature = "hybrid_consensus")]
+pub use hybrid_consensus::*;
 
 pub use validator::*;
 pub use pos::*;

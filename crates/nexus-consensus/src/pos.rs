@@ -379,7 +379,7 @@ impl ProofOfStake {
         let target = random_value % total_stake;
         
         let mut cumulative = 0u64;
-        for v in active {
+        for v in &active {
             cumulative += v.stake;
             if cumulative > target {
                 return Some(v.address.clone());
