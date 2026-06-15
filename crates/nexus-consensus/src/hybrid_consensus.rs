@@ -8,8 +8,9 @@ mod inner {
     use dashmap::DashMap;
     use rand::{thread_rng, Rng};
     use rand::distributions::WeightedIndex;
-    use uuid::Uuid;
-    use tracing::info;
+    use rand::distributions::Distribution;
+
+
     use nexus_primitives::{Address, Hash};
     use crate::{BftConsensus, ValidatorSet};
     use crate::bft::BftMessage;
@@ -17,8 +18,7 @@ mod inner {
     use crate::bft::CommitVote;
     use crate::bft::PrepareVote;
     use crate::bft::BftRoundState;
-    #[cfg(feature = "hybrid_consensus")]
-    use nexus_iso::{IsoResult, IsoLogEntry, Event};
+
 
     /// Represents the hybrid consensus engine.
     pub struct HybridConsensus {
@@ -57,20 +57,11 @@ mod inner {
         /// Called when a new proposal is observed – logs ISO‑compliant entry and forwards to BFT.
         pub async fn on_proposal(&mut self, proposal: Proposal) -> Result<(), Box<dyn std::error::Error>> {
             // Emit ISO log entry if feature enabled
-            #[cfg(feature = "hybrid_consensus")]
-            {
-                let log = IsoLogEntry {
-                    id: Uuid::new_v4(),
-                    timestamp_ms: chrono::Utc::now().timestamp_millis() as u64,
-                    event: Event::Proposal {
-                        proposer: proposal.proposer.clone(),
-                        epoch: proposal.epoch,
-                        view: proposal.view,
-                        vertex_hash: proposal.vertex_hash.clone(),
-                    },
-                };
-                // In a real system we would route this to the ISO logger; here we just debug‑log.
-                info!("ISO log entry: {:?}", log);
+            // Emit ISO log entry using the global logger if initialized
+            if let Some(logger_mutex) = crate::LOGGER.get() {
+                let mut logger = logger_mutex.lock().unwrap();
+                let msg = format!("Proposal from {} epoch {} view {}", proposal.proposer, proposal.epoch, proposal.view);
+                logger.log("HybridConsensus", &msg);
             }
             // Forward to underlying BFT engine (synchronous for now)
             self.bft.on_proposal(proposal)?;

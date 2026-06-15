@@ -1,7 +1,7 @@
 //! BFT Consensus for DAG finality
 
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use once_cell::sync::OnceCell;
 use std::sync::Mutex;
 use crate::iso_logger::IsoLogger;
@@ -9,7 +9,7 @@ use std::sync::Arc;
 use parking_lot::RwLock;
 use tokio::sync::mpsc;
 
-static LOGGER: OnceCell<Mutex<IsoLogger>> = OnceCell::new();
+pub(crate) static LOGGER: OnceCell<Mutex<IsoLogger>> = OnceCell::new();
 use sha3::{Digest, Keccak256};
 
 use nexus_primitives::{Address, Hash};
