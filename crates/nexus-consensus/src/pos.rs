@@ -406,7 +406,7 @@ mod tests {
         let pos = ProofOfStake::default();
         
         let result = pos.register_validator(
-            Address::from([1u8; 20]),
+            Address::new([1u8; 20]),
             vec![0u8; 33],
             100_000_000_000,
             500,
@@ -421,19 +421,19 @@ mod tests {
         let pos = ProofOfStake::default();
         
         pos.register_validator(
-            Address::from([1u8; 20]),
+            Address::new([1u8; 20]),
             vec![0u8; 33],
             100_000_000_000,
             500,
         ).unwrap();
         
         pos.delegate(
-            Address::from([2u8; 20]),
-            Address::from([1u8; 20]),
+            Address::new([2u8; 20]),
+            Address::new([1u8; 20]),
             10_000_000,
         ).unwrap();
         
-        let delegations = pos.get_delegations(&Address::from([2u8; 20]));
+        let delegations = pos.get_delegations(&Address::new([2u8; 20]));
         assert_eq!(delegations.len(), 1);
         assert_eq!(delegations[0].amount, 10_000_000);
     }
@@ -444,7 +444,7 @@ mod tests {
         
         for i in 0..3 {
             pos.register_validator(
-                Address::from([i as u8; 20]),
+                Address::new([i as u8; 20]),
                 vec![0u8; 33],
                 100_000_000_000,
                 500,

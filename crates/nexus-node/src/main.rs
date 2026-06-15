@@ -232,7 +232,7 @@ async fn run_benchmarks(bench_type: String, iterations: u64) -> Result<(), Box<d
             info!("Benchmarking DAG operations...");
             
             let dag = Dag::new();
-            let proposer = Address::from([1u8; 20]);
+            let proposer = Address::new([1u8; 20]);
             
             let start = Instant::now();
             for i in 0..iterations {
@@ -240,7 +240,7 @@ async fn run_benchmarks(bench_type: String, iterations: u64) -> Result<(), Box<d
                 let vertex = Vertex::new(
                     proposer.clone(),
                     parents,
-                    vec![Hash::from([i as u8; 32])],
+                    vec![Hash::new([i as u8; 32])],
                     0,
                     i,
                 );

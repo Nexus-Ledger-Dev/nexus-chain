@@ -311,6 +311,7 @@ impl ValidatorRegistry {
     pub fn slash(&self, address: &Address, percentage: u64, jail_epochs: u64) -> ConsensusResult<u64> {
         let mut current = self.current_set.write();
         
+        let epoch = current.epoch;
         let validator = current.get_mut(address)
             .ok_or_else(|| ConsensusError::UnknownValidator(format!("{:?}", address)))?;
         
@@ -318,7 +319,7 @@ impl ValidatorRegistry {
         let slash_amount = (validator.stake * percentage) / 10000;
         validator.stake -= slash_amount;
         validator.slash_count += 1;
-        validator.jailed_until = current.epoch + jail_epochs;
+        validator.jailed_until = epoch + jail_epochs;
         
         current.total_stake -= slash_amount;
         
@@ -344,7 +345,7 @@ mod tests {
     #[test]
     fn test_validator_eligibility() {
         let mut v = Validator::new(
-            Address::from([1u8; 20]),
+            Address::new([1u8; 20]),
             vec![0u8; 33],
             100_000_000_000,
         );
@@ -361,7 +362,7 @@ mod tests {
         let mut set = ValidatorSet::new(0);
         
         let v1 = Validator::new(
-            Address::from([1u8; 20]),
+            Address::new([1u8; 20]),
             vec![0u8; 33],
             100_000_000_000,
         );
@@ -378,7 +379,7 @@ mod tests {
         
         for i in 0..3 {
             let v = Validator::new(
-                Address::from([i as u8; 20]),
+                Address::new([i as u8; 20]),
                 vec![0u8; 33],
                 100_000_000_000,
             );

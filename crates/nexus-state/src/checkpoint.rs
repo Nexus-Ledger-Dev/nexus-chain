@@ -267,15 +267,15 @@ mod tests {
         
         let changes = vec![
             StateChange::BalanceChange {
-                address: Address::from([1u8; 20]),
+                address: Address::new([1u8; 20]),
                 old_value: U256::ZERO,
                 new_value: U256::from(100),
             },
         ];
         
         let id = manager.create_checkpoint(
-            Hash::from([1u8; 32]),
-            Hash::from([2u8; 32]),
+            Hash::new([1u8; 32]),
+            Hash::new([2u8; 32]),
             changes,
             &[],
         );

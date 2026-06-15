@@ -207,7 +207,7 @@ impl Proposer {
         // Calculate vertex height (max parent height + 1)
         let height = parents.iter()
             .filter_map(|h| self.dag.get_vertex(h))
-            .map(|v| v.height.as_u64())
+            .map(|v| v.height)
             .max()
             .unwrap_or(0) + 1;
         

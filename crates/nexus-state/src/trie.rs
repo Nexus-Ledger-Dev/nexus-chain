@@ -33,7 +33,7 @@ impl TrieNode {
     /// Compute node hash
     pub fn hash(&self) -> Hash {
         let encoded = self.rlp_encode();
-        Hash::from(Keccak256::digest(&encoded).as_slice())
+        Hash::new(Keccak256::digest(&encoded).into())
     }
     
     /// RLP encode node (simplified)

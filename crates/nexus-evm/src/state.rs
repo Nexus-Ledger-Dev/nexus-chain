@@ -382,7 +382,7 @@ mod tests {
     #[test]
     fn test_account_operations() {
         let state = StateDb::new();
-        let addr = Address::from([1u8; 20]);
+        let addr = Address::new([1u8; 20]);
         
         // Initial state
         assert!(state.get_account(&addr).is_empty());
@@ -404,7 +404,7 @@ mod tests {
     #[test]
     fn test_storage_operations() {
         let state = StateDb::new();
-        let addr = Address::from([1u8; 20]);
+        let addr = Address::new([1u8; 20]);
         let key = U256::from(42);
         
         // Initial storage
@@ -419,7 +419,7 @@ mod tests {
     fn test_journaled_state_revert() {
         let state = Arc::new(StateDb::new());
         let mut journal = JournaledState::new(state.clone());
-        let addr = Address::from([1u8; 20]);
+        let addr = Address::new([1u8; 20]);
         
         // Initial balance
         state.set_balance(&addr, U256::from(1000));

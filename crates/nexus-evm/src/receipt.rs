@@ -289,7 +289,7 @@ mod tests {
     #[test]
     fn test_bloom_filter() {
         let mut bloom = Bloom::default();
-        let addr = Address::from([0x42u8; 20]);
+        let addr = Address::new([0x42u8; 20]);
         
         assert!(!bloom.contains_address(&addr));
         bloom.accrue_address(&addr);

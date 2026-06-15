@@ -206,7 +206,7 @@ mod tests {
     #[test]
     fn test_state_db() {
         let db = StateDb::new();
-        let addr = Address::from([1u8; 20]);
+        let addr = Address::new([1u8; 20]);
         
         // Test balance
         db.set_balance(&addr, U256::from(100));

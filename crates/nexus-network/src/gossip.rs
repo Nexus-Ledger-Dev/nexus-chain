@@ -139,7 +139,7 @@ impl GossipHandler {
     /// Compute message hash for deduplication
     fn message_hash(&self, message: &NetworkMessage) -> Hash {
         let data = bincode::serialize(message).unwrap_or_default();
-        Hash::from(sha3::Keccak256::digest(&data).as_slice())
+        Hash::new(sha3::Keccak256::digest(&data).into())
     }
     
     /// Serialize message for sending
@@ -156,7 +156,7 @@ mod tests {
     #[test]
     fn test_message_cache() {
         let cache = MessageCache::new(100, 60);
-        let hash = Hash::from([1u8; 32]);
+        let hash = Hash::new([1u8; 32]);
         
         assert!(!cache.is_seen(&hash));
         cache.mark_seen(hash.clone());

@@ -590,7 +590,7 @@ mod tests {
         assert!(bft.is_leader());
         
         // Propose
-        let hash = Hash::from([1u8; 32]);
+        let hash = Hash::new([1u8; 32]);
         let proposal = bft.propose(hash.clone(), vec![]).unwrap();
         
         assert_eq!(proposal.vertex_hash, hash);

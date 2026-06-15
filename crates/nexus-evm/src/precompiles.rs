@@ -68,7 +68,7 @@ fn addr(n: u64) -> Address {
     let mut bytes = [0u8; 20];
     bytes[19] = n as u8;
     bytes[18] = (n >> 8) as u8;
-    Address::from(bytes)
+    Address::new(bytes)
 }
 
 /// Check if address is a precompile

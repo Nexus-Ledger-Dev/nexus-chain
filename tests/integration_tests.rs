@@ -12,7 +12,7 @@ use nexus_iso::*;
 #[test]
 fn test_dag_basic_operations() {
     let dag = Dag::new();
-    let proposer = Address::from([1u8; 20]);
+    let proposer = Address::new([1u8; 20]);
     
     // Create genesis vertex
     let genesis = Vertex::new(
@@ -53,7 +53,7 @@ fn test_dag_basic_operations() {
 #[test]
 fn test_dag_parallel_vertices() {
     let dag = Dag::new();
-    let proposer = Address::from([1u8; 20]);
+    let proposer = Address::new([1u8; 20]);
     
     // Create genesis
     let genesis = Vertex::new(
@@ -100,7 +100,7 @@ fn test_dag_parallel_vertices() {
 fn test_tip_selection() {
     let dag = Arc::new(Dag::new());
     let selector = TipSelector::new(dag.clone(), TipSelectionConfig::default());
-    let proposer = Address::from([1u8; 20]);
+    let proposer = Address::new([1u8; 20]);
     
     // Create some vertices
     let genesis = Vertex::new(proposer.clone(), vec![], vec![], 0, 0);
@@ -117,7 +117,7 @@ fn test_tip_selection() {
 #[test]
 fn test_validator_registration() {
     let pos = ProofOfStake::default();
-    let address = Address::from([1u8; 20]);
+    let address = Address::new([1u8; 20]);
     let pubkey = vec![0u8; 48];
     
     pos.register_validator(address.clone(), pubkey, 100_000_000_000, 500).unwrap();
@@ -163,7 +163,7 @@ fn test_state_operations() {
     use nexus_state::StateDb;
     
     let state = StateDb::new();
-    let addr = Address::from([1u8; 20]);
+    let addr = Address::new([1u8; 20]);
     
     // Balance operations
     state.set_balance(&addr, U256::from(1000));
