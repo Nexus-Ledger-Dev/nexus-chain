@@ -42,8 +42,8 @@ impl Validator {
             stake,
             commission: 500, // 5% default
             active: true,
-            jailed_until: 0,
-            jailed_until: 0,
+
+
             slash_count: 0,
             uptime: 10000, // 100%
             last_active_epoch: 0,

@@ -174,12 +174,8 @@ impl ProofOfStake {
         let v = validators.get_mut(&validator)
             .ok_or_else(|| ConsensusError::UnknownValidator(format!("{:?}", validator)))?;
         
-        // Calculate shares
-        let shares = if v.stake == 0 {
-            amount
-        } else {
-            (amount as u128 * v.stake as u128 / v.stake as u128) as u64
-        };
+        // Calculate shares (simple 1:1 mapping; replace with proper proportional logic later)
+        let shares = amount;
         
         v.stake += amount;
         validators.total_stake += amount;

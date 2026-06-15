@@ -228,6 +228,39 @@ impl BftConsensus {
         let leader_idx = (state.view as usize) % active.len();
         active.get(leader_idx) == Some(self.keys.address())
     }
+
+    /// Weighted leader selection based on stake (deterministic)
+    pub fn weighted_leader(&self) -> Option<Address> {
+        let validators = self.validator_set.read();
+        let active = validators.active_validators();
+        let total_stake: u128 = active.iter().map(|v| v.stake as u128).sum();
+        if total_stake == 0 {
+            return None;
+        }
+        // deterministic hash of view and epoch
+        let state = self.state.read();
+        let mut hasher = Keccak256::new();
+        hasher.update(&state.view.to_le_bytes());
+        hasher.update(&state.epoch.to_le_bytes());
+        let rand = u128::from_be_bytes(hasher.finalize()[..16].try_into().unwrap());
+        let target = rand % total_stake;
+        let mut cum: u128 = 0;
+        for v in active {
+            cum += v.stake as u128;
+            if cum > target {
+                return Some(v.address.clone());
+            }
+        }
+        None
+    }
+
+    /// Check if the given address is the weighted leader for the current view
+    pub fn is_weighted_leader(&self, my_addr: &Address) -> bool {
+        match self.weighted_leader() {
+            Some(leader) => &leader == my_addr,
+            None => false,
+        }
+    }
     
     /// Create and broadcast proposal
     pub fn propose(&self, vertex_hash: Hash, parents: Vec<Hash>) -> ConsensusResult<Proposal> {

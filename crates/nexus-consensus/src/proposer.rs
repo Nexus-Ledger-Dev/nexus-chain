@@ -7,7 +7,7 @@ use parking_lot::RwLock;
 use tokio::sync::mpsc;
 use tracing::{debug, info, warn};
 
-use nexus_primitives::{Address, Hash, Transaction};
+use nexus_primitives::{Address, Hash, Transaction, TxType};
 use nexus_dag::{Dag, Vertex, VertexState};
 use crate::{ConsensusResult, ConsensusError, BftConsensus, ProofOfStake};
 
@@ -157,8 +157,8 @@ impl Proposer {
     
     /// Check if we should propose
     pub fn should_propose(&self) -> bool {
-        // Check if we're the leader
-        if !self.bft.is_leader() {
+        // Check if we're the weighted leader
+        if !self.bft.is_weighted_leader(&self.address) {
             return false;
         }
         
@@ -194,6 +194,14 @@ impl Proposer {
         
         // Get transactions from pool
         let transactions = self.tx_pool.get_pending(self.config.max_txs_per_vertex);
+        // ISO‑8583 / ISO‑20022 validation – any IsoPayment must carry iso_data
+        for tx in &transactions {
+            if tx.tx_type == TxType::IsoPayment && tx.iso_data.is_none() {
+                return Err(ConsensusError::InvalidProposal(
+                    "ISO payment transaction missing iso_data".into(),
+                ));
+            }
+        }
         let tx_hashes: Vec<Hash> = transactions.iter().map(|tx| tx.hash()).collect();
         
         // Calculate vertex height (max parent height + 1)

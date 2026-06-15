@@ -459,7 +459,7 @@ pub struct TransactionReceipt {
     pub logs: Vec<Log>,
     
     /// Bloom filter for logs
-    pub logs_bloom: [u8; 256],
+    pub logs_bloom: Vec<u8>, // bloom filter (256 bytes)
     
     /// ZKP verification result (for private transactions)
     pub zkp_verified: Option<bool>,

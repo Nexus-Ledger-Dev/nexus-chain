@@ -130,8 +130,15 @@ impl Receipt {
 }
 
 /// Bloom filter for log indexing (2048 bits)
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
-pub struct Bloom(pub [u8; 256]);
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct Bloom(pub Vec<u8>);
+
+impl Default for Bloom {
+    fn default() -> Self {
+        Self(vec![0u8; 256])
+    }
+}
+
 
 impl Bloom {
     /// Create bloom filter from logs
