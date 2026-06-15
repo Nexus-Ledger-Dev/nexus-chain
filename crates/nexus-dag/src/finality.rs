@@ -58,6 +58,7 @@ pub struct ValidatorSet {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ValidatorInfo {
     pub id: ValidatorId,
+    #[serde(with = "serde_bytes")]
     pub public_key: [u8; 64], // Uncompressed public key bytes
     pub stake: Weight,
     pub address: Address,

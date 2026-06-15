@@ -9,6 +9,7 @@
 use crate::{Dag, Vertex, VertexStatus};
 use nexus_primitives::{Hash, Height, Weight};
 use rand::prelude::*;
+use rand::seq::SliceRandom;
 use std::collections::HashSet;
 
 /// Tip selection strategy

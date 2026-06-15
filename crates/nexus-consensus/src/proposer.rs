@@ -8,7 +8,7 @@ use tokio::sync::mpsc;
 use tracing::{debug, info, warn};
 
 use nexus_primitives::{Address, Hash, Transaction, TxType};
-use nexus_dag::{Dag, Vertex, VertexState};
+use nexus_dag::{Dag, Vertex, VertexStatus};
 use crate::{ConsensusResult, ConsensusError, BftConsensus, ProofOfStake};
 
 /// Configuration for vertex proposer
@@ -181,7 +181,7 @@ impl Proposer {
         debug!("Creating new vertex proposal");
         
         // Select parent tips
-        let tips = self.dag.tips();
+        let tips = self.dag.get_tips();
         let parents: Vec<Hash> = tips.into_iter()
             .take(self.config.max_parents)
             .collect();

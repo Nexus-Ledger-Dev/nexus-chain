@@ -14,3 +14,5 @@ thiserror = { workspace = true }
 tracing = { workspace = true }
 parking_lot = "0.12"
 dashmap = "5.5"
+rand = { workspace = true }
+serde_bytes = "0.11"

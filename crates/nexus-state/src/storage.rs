@@ -127,7 +127,7 @@ impl StateDb {
     pub fn set_code(&self, address: &Address, code: Vec<u8>) {
         use sha3::{Digest, Keccak256};
         
-        let code_hash = Hash::from(Keccak256::digest(&code).as_slice());
+        let code_hash = Hash::new(Keccak256::digest(&code).as_slice().try_into().unwrap());
         self.code.insert(code_hash.clone(), code);
         
         let mut account = self.get_account(address);
@@ -161,7 +161,7 @@ impl StateDb {
         let account = self.get_account(address);
         account.nonce == 0 && 
         account.balance == U256::ZERO && 
-        account.code_hash == Hash::from([0u8; 32])
+        account.code_hash == Hash::ZERO
     }
     
     /// Delete account

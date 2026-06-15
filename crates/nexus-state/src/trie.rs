@@ -54,7 +54,7 @@ pub struct MerkleTrie {
 impl MerkleTrie {
     /// Create empty trie
     pub fn new() -> Self {
-        let empty_root = Hash::from([0u8; 32]);
+        let empty_root = Hash::ZERO;
         let mut nodes = HashMap::new();
         nodes.insert(empty_root.clone(), TrieNode::Empty);
         
@@ -134,7 +134,7 @@ impl MerkleTrie {
             TrieNode::Empty => {
                 TrieNode::Leaf {
                     key_end: nibbles[depth..].to_vec(),
-                    value,
+                    value: value.clone(),
                 }
             }
             
@@ -158,7 +158,7 @@ impl MerkleTrie {
                     if common_len < key_end.len() {
                         let old_leaf = TrieNode::Leaf {
                             key_end: key_end[common_len + 1..].to_vec(),
-                            value: old_value,
+                            value: old_value.clone(),
                         };
                         let old_hash = old_leaf.hash();
                         self.nodes.insert(old_hash.clone(), old_leaf);
@@ -179,9 +179,9 @@ impl MerkleTrie {
                     let branch = TrieNode::Branch {
                         children,
                         value: if common_len == remaining.len() {
-                            Some(value)
+                            Some(value.clone())
                         } else if common_len == key_end.len() {
-                            Some(old_value)
+                            Some(old_value.clone())
                         } else {
                             None
                         },
@@ -264,7 +264,7 @@ impl MerkleTrie {
                     let idx = remaining[0] as usize;
                     let child_hash = children[idx]
                         .clone()
-                        .unwrap_or_else(|| Hash::from([0u8; 32]));
+                        .unwrap_or_else(|| Hash::ZERO);
                     
                     let new_child = self.insert_recursive(&child_hash, nibbles, depth + 1, value)?;
                     children[idx] = Some(new_child);
@@ -303,7 +303,7 @@ impl MerkleTrie {
             
             TrieNode::Leaf { key_end, .. } => {
                 if &nibbles[depth..] == key_end.as_slice() {
-                    Ok(Hash::from([0u8; 32]))
+                    Ok(Hash::ZERO)
                 } else {
                     Ok(node_hash.clone())
                 }
@@ -319,7 +319,7 @@ impl MerkleTrie {
                     let idx = nibbles[depth] as usize;
                     if let Some(child) = &children[idx] {
                         let new_child = self.delete_recursive(child, nibbles, depth + 1)?;
-                        if new_child == Hash::from([0u8; 32]) {
+                        if new_child == Hash::ZERO {
                             children[idx] = None;
                         } else {
                             children[idx] = Some(new_child);

@@ -36,19 +36,18 @@ pub struct Validator {
 impl Validator {
     /// Create new validator
     pub fn new(address: Address, pubkey: Vec<u8>, stake: u64) -> Self {
-        Self {
-            address,
-            pubkey,
-            stake,
-            commission: 500, // 5% default
-            active: true,
-
-
-            slash_count: 0,
-            uptime: 10000, // 100%
-            last_active_epoch: 0,
-        }
-    }
+                Self {
+                    address,
+                    pubkey,
+                    stake,
+                    commission: 500, // 5% default
+                    active: true,
+                    jailed_until: 0,
+                    slash_count: 0,
+                    uptime: 10000, // 100%
+                    last_active_epoch: 0,
+                }
+            }
     
     /// Check if validator is eligible to participate
     pub fn is_eligible(&self, current_epoch: u64) -> bool {
@@ -192,7 +191,7 @@ impl ValidatorKeys {
     fn derive_address(key: &SigningKey) -> Address {
         let pubkey = key.verifying_key().to_encoded_point(false);
         let hash = Keccak256::digest(&pubkey.as_bytes()[1..]);
-        Address::from_slice(&hash[12..])
+        Address::from_slice(&hash[12..]).expect("invalid address")
     }
     
     /// Get address

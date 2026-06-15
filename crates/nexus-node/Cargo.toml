@@ -15,7 +15,7 @@ nexus-dag = { path = "../nexus-dag" }
 nexus-consensus = { path = "../nexus-consensus" }
 nexus-evm = { path = "../nexus-evm" }
 nexus-zkp = { path = "../nexus-zkp" }
-nexus-iso = { path = "../nexus-iso" }
+# nexus-iso = { path = "../nexus-iso" }
 nexus-network = { path = "../nexus-network" }
 nexus-rpc = { path = "../nexus-rpc" }
 

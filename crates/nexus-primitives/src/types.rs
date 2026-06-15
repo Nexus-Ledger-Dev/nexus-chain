@@ -7,6 +7,17 @@ use std::fmt;
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 pub struct Hash([u8; 32]);
 
+// Duplicate Hash::new removed – use the implementation defined later
+
+impl From<&[u8]> for Hash {
+    fn from(slice: &[u8]) -> Self {
+        let mut arr = [0u8; 32];
+        arr.copy_from_slice(&slice[0..32]);
+        Hash::new(arr)
+    }
+}
+
+
 impl Hash {
     pub const ZERO: Self = Self([0u8; 32]);
     
@@ -124,6 +135,73 @@ impl U256 {
             Some(Self(result))
         }
     }
+}
+
+// Basic arithmetic and conversion traits for U256 (very naive implementation)
+use std::ops::{Add, Sub, Mul};
+use std::hash::{Hash as StdHash, Hasher};
+use std::cmp::Ordering;
+
+impl From<u64> for U256 {
+    fn from(val: u64) -> Self { Self::from_u64(val) }
+}
+
+impl Add for U256 {
+    type Output = Self;
+    fn add(self, rhs: Self) -> Self { self.checked_add(&rhs).expect("U256 overflow") }
+}
+
+impl Sub for U256 {
+    type Output = Self;
+    fn sub(self, rhs: Self) -> Self { self.checked_sub(&rhs).expect("U256 underflow") }
+}
+
+impl Mul for U256 {
+    type Output = Self;
+    fn mul(self, rhs: Self) -> Self {
+        // naive schoolbook multiplication (limited to 128‑bit values for demo)
+        let mut result = [0u64; 4];
+        for i in 0..4 {
+            for j in 0..4 {
+                if i + j < 4 {
+                    let (low, carry) = self.0[i].overflowing_mul(rhs.0[j]);
+                    let (sum, overflow) = result[i + j].overflowing_add(low);
+                    result[i + j] = sum;
+                    if i + j + 1 < 4 {
+                        let (new, _) = result[i + j + 1].overflowing_add(carry as u64 + overflow as u64);
+                        result[i + j + 1] = new;
+                    }
+                }
+            }
+        }
+        Self(result)
+    }
+}
+
+impl StdHash for U256 {
+    fn hash<H: Hasher>(&self, state: &mut H) { self.0.hash(state); }
+}
+
+impl PartialOrd for U256 {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for U256 {
+    fn cmp(&self, other: &Self) -> Ordering {
+        for i in (0..4).rev() {
+            match self.0[i].cmp(&other.0[i]) {
+                Ordering::Equal => continue,
+                non_eq => return non_eq,
+            }
+        }
+        Ordering::Equal
+    }
+}
+
+impl U256 {
+    pub fn as_u64(&self) -> u64 { self.0[0] }
 }
 
 impl fmt::Debug for U256 {

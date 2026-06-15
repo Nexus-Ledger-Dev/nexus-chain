@@ -257,6 +257,11 @@ impl Dag {
     pub fn get_tips(&self) -> Vec<Hash> {
         self.tips.read().iter().cloned().collect()
     }
+
+    // Legacy wrapper for compatibility
+    pub fn tips(&self) -> Vec<Hash> {
+        self.get_tips()
+    }
     
     /// Get a vertex by hash
     pub fn get_vertex(&self, hash: &Hash) -> Option<Arc<Vertex>> {

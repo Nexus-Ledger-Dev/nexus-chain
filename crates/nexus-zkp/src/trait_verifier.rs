@@ -1,4 +1,4 @@
-use nexus_zkp::{ZkpResult, VerificationResult, SerializedProof};
+// use nexus_zkp::{ZkpResult, VerificationResult, SerializedProof};
 
 pub trait Verifier: Send + Sync {
     fn verify(&self, proof: &[u8], input: &[u8]) -> bool;

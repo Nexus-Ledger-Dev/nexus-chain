@@ -110,7 +110,7 @@ impl NexusHandler {
         let vertex = self.dag.get_vertex(&hash)
             .ok_or_else(|| RpcError::NotFound("Vertex not found".into()))?;
         
-        Ok(json!(vertex.state == nexus_dag::VertexState::Finalized))
+        Ok(json!(vertex.state == nexus_dag::VertexStatus::Finalized))
     }
     
     /// nexus_validators - Get validator set

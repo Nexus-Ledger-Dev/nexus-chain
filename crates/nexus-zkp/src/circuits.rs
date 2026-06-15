@@ -13,6 +13,7 @@ use ark_r1cs_std::{
     ToBitsGadget,
 };
 use ark_bn254::Fr;
+use ark_r1cs_std::select::CondSelectGadget;
 use std::marker::PhantomData;
 
 /// Private transaction circuit
