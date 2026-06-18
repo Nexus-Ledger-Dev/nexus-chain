@@ -334,7 +334,6 @@ fn parse_g1(data: &[u8]) -> Option<ark_bn254::G1Affine> {
 /// Serialize a G1 point back to 64 bytes in Ethereum format.
 fn serialize_g1(p: &ark_bn254::G1Affine) -> [u8; 64] {
     use ark_ec::AffineRepr;
-    use ark_ff::Zero;
     let mut out = [0u8; 64];
     if p.is_zero() { return out; }
     out[0..32].copy_from_slice(&bn254_fq_to_be(&p.x));

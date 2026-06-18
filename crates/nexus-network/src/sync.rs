@@ -6,7 +6,7 @@ use parking_lot::RwLock;
 use tracing::{debug, info, warn};
 
 use nexus_primitives::{Hash, Transaction};
-use nexus_dag::{Dag, DagConfig, Vertex};
+use nexus_dag::{Dag, Vertex};
 use crate::{NetworkResult, SyncRequest, SyncResponse};
 
 /// Sync state
