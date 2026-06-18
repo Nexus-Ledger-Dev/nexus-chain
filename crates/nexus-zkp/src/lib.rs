@@ -34,6 +34,8 @@ pub use verifier::*;
 pub use commitment::*;
 pub use poseidon::*;
 pub use trait_verifier::*;
+// Explicit re-export resolves ambiguity with verifier::Verifier (struct)
+pub use trait_verifier::Verifier;
 
 /// ZKP system configuration
 #[derive(Clone, Debug)]

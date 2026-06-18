@@ -1,13 +1,13 @@
 //! Core DAG data structure and operations
 
-use crate::{Vertex, VertexError, VertexHeader, VertexStatus};
+use crate::{Vertex, VertexStatus};
 use dashmap::DashMap;
-use nexus_primitives::{Hash, Height, NexusError, Result, Timestamp, ValidatorId};
+use nexus_primitives::{Hash, Height, NexusError, Result};
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
-use std::collections::{HashMap, HashSet, VecDeque};
+use std::collections::{HashSet, VecDeque};
 use std::sync::Arc;
-use tracing::{debug, info, warn};
+use tracing::{debug, info};
 
 /// Configuration for DAG behavior
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -334,7 +334,7 @@ impl Dag {
             }
             visited.insert(current);
             
-            if let Some(vertex) = self.vertices.get(&current) {
+            if let Some(_vertex) = self.vertices.get(&current) {
                 weight += 1;
                 
                 for child in self.get_children(&current) {
@@ -457,7 +457,7 @@ pub struct DagStats {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use nexus_primitives::Timestamp;
+    use nexus_primitives::ValidatorId;
     
     fn create_test_dag() -> Dag {
         let dag = Dag::new(DagConfig::default());
@@ -479,7 +479,7 @@ mod tests {
         let dag = create_test_dag();
         let genesis_hash = dag.get_tips()[0];
         
-        let vertex = Vertex::new(
+        let vertex = Vertex::new_for_test(
             vec![genesis_hash],
             1,
             1000,
@@ -488,20 +488,20 @@ mod tests {
             Hash::ZERO,
             Hash::ZERO,
         );
-        
+
         dag.add_vertex(vertex).unwrap();
-        
+
         assert_eq!(dag.latest_height(), 1);
         assert_eq!(dag.get_tips().len(), 1);
     }
-    
+
     #[test]
     fn test_dag_multiple_tips() {
         let dag = create_test_dag();
         let genesis_hash = dag.get_tips()[0];
-        
+
         // Add two vertices referencing genesis
-        let vertex1 = Vertex::new(
+        let vertex1 = Vertex::new_for_test(
             vec![genesis_hash],
             1,
             1000,
@@ -510,8 +510,8 @@ mod tests {
             Hash::ZERO,
             Hash::ZERO,
         );
-        
-        let vertex2 = Vertex::new(
+
+        let vertex2 = Vertex::new_for_test(
             vec![genesis_hash],
             1,
             1001,
@@ -520,19 +520,19 @@ mod tests {
             Hash::ZERO,
             Hash::ZERO,
         );
-        
+
         dag.add_vertex(vertex1).unwrap();
         dag.add_vertex(vertex2).unwrap();
-        
+
         assert_eq!(dag.get_tips().len(), 2);
     }
-    
+
     #[test]
     fn test_ancestor_check() {
         let dag = create_test_dag();
         let genesis_hash = dag.get_tips()[0];
-        
-        let vertex = Vertex::new(
+
+        let vertex = Vertex::new_for_test(
             vec![genesis_hash],
             1,
             1000,

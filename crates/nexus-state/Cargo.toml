@@ -4,9 +4,14 @@ version = "0.1.0"
 edition = "2021"
 description = "State storage for NexusChain"
 
+[features]
+default = []
+ethereum-compat = []
+
 [dependencies]
 serde_json = { version = "1.0", features = ["preserve_order"] }
 nexus-primitives = { path = "../nexus-primitives" }
+alloy-rlp = "0.3"
 
 serde = { version = "1", features = ["derive"] }
 sha3 = "0.10"

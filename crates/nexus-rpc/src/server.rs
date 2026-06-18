@@ -10,9 +10,9 @@ use axum::{
     Json,
 };
 use tower_http::cors::CorsLayer;
-use tracing::{info, error};
+use tracing::info;
 
-use crate::{MethodDispatcher, JsonRpcRequest, JsonRpcResponse, RpcResult, RpcError};
+use crate::{MethodDispatcher, JsonRpcRequest, JsonRpcResponse};
 
 /// RPC server configuration
 #[derive(Clone, Debug)]
@@ -112,7 +112,7 @@ async fn handle_rpc(
     }
 }
 
-/// Handle batch JSON-RPC requests
+#[allow(dead_code)]
 async fn handle_batch_rpc(
     State(state): State<Arc<ServerState>>,
     Json(requests): Json<Vec<JsonRpcRequest>>,
@@ -139,15 +139,21 @@ async fn handle_batch_rpc(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use nexus_dag::Dag;
+    use nexus_dag::{Dag, DagConfig};
     use nexus_evm::StateDb;
     use nexus_consensus::ProofOfStake;
-    
+    use crate::RpcError;
+
     fn setup_dispatcher() -> MethodDispatcher {
-        let dag = Arc::new(Dag::new());
+        use crate::mempool::Mempool;
+        use std::sync::Arc;
+        use std::sync::atomic::AtomicUsize;
+        let dag = Arc::new(Dag::new(DagConfig::default()));
         let state = Arc::new(StateDb::new());
         let pos = Arc::new(ProofOfStake::default());
-        MethodDispatcher::new(dag, state, pos, 1337)
+        let mempool = Arc::new(Mempool::new(1000));
+        let peer_count = Arc::new(AtomicUsize::new(0));
+        MethodDispatcher::new(dag, state, pos, Arc::new(Box::new(nexus_zkp::DefaultVerifier::default())), 1337, mempool, peer_count)
     }
     
     #[test]

@@ -8,13 +8,13 @@ use std::sync::Arc;
 use sha3::{Digest, Keccak256};
 use tracing::{debug, trace, warn};
 
-use nexus_primitives::{Address, Hash, Transaction, TransactionType, U256};
+use nexus_primitives::{Address, Hash, Transaction, TxType, U256};
 use crate::{
     EvmError, EvmResult,
     state::{StateDb, JournaledState, Account},
-    gas::{GasSchedule, FeeMarket, GasMeter},
-    precompiles::{get_precompiles, is_precompile, PrecompileFn},
-    receipt::{Receipt, ExecutionResult, Log, ExecutionStatus},
+    gas::{GasSchedule, FeeMarket},
+    precompiles::{get_precompiles, PrecompileFn},
+    receipt::{Receipt, ExecutionResult, Log},
 };
 
 /// EVM execution environment
@@ -63,7 +63,7 @@ pub struct Executor {
     env: EvmEnv,
     /// Gas schedule
     gas_schedule: GasSchedule,
-    /// Fee market configuration
+    #[allow(dead_code)]
     fee_market: FeeMarket,
     /// Precompiled contracts
     precompiles: HashMap<Address, PrecompileFn>,
@@ -95,7 +95,7 @@ impl Executor {
         
         // Get sender
         let sender = tx.recover_sender()
-            .ok_or(EvmError::InvalidSignature)?;
+            .map_err(|_| EvmError::InvalidSignature)?;
         
         // Initialize access list with sender and recipient
         self.accessed_addresses.clear();
@@ -245,18 +245,19 @@ impl Executor {
     /// Calculate effective gas price
     fn calculate_gas_price(&self, tx: &Transaction) -> EvmResult<U256> {
         match tx.tx_type {
-            TransactionType::Legacy => Ok(tx.gas_price),
-            TransactionType::Eip2930 => Ok(tx.gas_price),
-            TransactionType::Eip1559 => {
-                if tx.max_fee_per_gas < self.env.base_fee_per_gas {
+            TxType::Legacy => Ok(tx.gas_price),
+            TxType::AccessList => Ok(tx.gas_price),
+            TxType::DynamicFee => {
+                if tx.gas_price < self.env.base_fee_per_gas {
                     return Err(EvmError::StateError(
                         "Max fee per gas below base fee".into()
                     ));
                 }
-                
-                let priority_fee = tx.max_priority_fee_per_gas
-                    .min(tx.max_fee_per_gas - self.env.base_fee_per_gas);
-                
+
+                let max_priority_fee = tx.max_priority_fee.unwrap_or(U256::ZERO);
+                let priority_fee = max_priority_fee
+                    .min(tx.gas_price - self.env.base_fee_per_gas);
+
                 Ok(self.env.base_fee_per_gas + priority_fee)
             }
             _ => Ok(tx.gas_price),
@@ -284,27 +285,27 @@ impl Executor {
             ));
         }
         
-        // Initialize contract account
+        // Initialize contract account (balance starts at zero; REVM transfers tx.value).
         self.state.set_account(contract_addr.clone(), Account {
             nonce: 1, // EIP-161
-            balance: tx.value,
+            balance: U256::ZERO,
             code_hash: Hash::ZERO,
             storage_root: Hash::ZERO,
         });
         
-        // Transfer value
-        if tx.value > U256::ZERO {
-            self.state.sub_balance(sender, tx.value)?;
-            self.state.add_balance(&contract_addr, tx.value)?;
-        }
-        
-        // Execute init code
+        // Store the init code at the contract address so REVM can find it via basic().
+        // execute_create will overwrite this with the deployed code on success.
+        self.state.set_code(&contract_addr, tx.data.to_vec());
+
+        // Value transfer + CALLVALUE are both handled inside REVM.
         let gas_available = tx.gas_limit - self.gas_schedule.tx_create;
         let result = self.execute_code(
             journal,
             sender,
             &contract_addr,
-            &tx.data,
+            &tx.data, // init code (REVM reads it from state, this arg is ignored)
+            &[],      // no separate calldata for CREATE; constructor args are inside init code
+            tx.value,
             gas_available,
         )?;
         
@@ -355,9 +356,14 @@ impl Executor {
         data: &[u8],
         gas: u64,
     ) -> EvmResult<ExecutionResult> {
-        // Check if precompile
+        // Dispatch NexusChain custom precompiles (0x100-0x110) before REVM.
         if let Some(precompile) = self.precompiles.get(to) {
             trace!("Calling precompile at {:?}", to);
+            // Value transfer to precompile (mirrors Ethereum's value-passing semantics).
+            if value > U256::ZERO {
+                self.state.sub_balance(sender, value)?;
+                self.state.add_balance(to, value)?;
+            }
             let result = precompile(data, gas, &self.gas_schedule)?;
             return Ok(ExecutionResult::success(
                 result.gas_used,
@@ -366,59 +372,137 @@ impl Executor {
                 vec![],
             ));
         }
-        
-        // Transfer value
-        if value > U256::ZERO {
-            self.state.sub_balance(sender, value)?;
-            self.state.add_balance(to, value)?;
-        }
-        
-        // Get contract code
+
         let code = self.state.get_code(to);
-        
+
         if code.is_empty() {
-            // EOA or empty contract
+            // Plain ETH transfer to EOA — no bytecode to run.
+            if value > U256::ZERO {
+                self.state.sub_balance(sender, value)?;
+                self.state.add_balance(to, value)?;
+            }
             return Ok(ExecutionResult::success(0, 0, vec![], vec![]));
         }
-        
-        // Execute code
-        self.execute_code(journal, sender, to, &code, gas)
+
+        // Contract call: value transfer + CALLVALUE are both handled inside REVM.
+        self.execute_code(journal, sender, to, &code, data, value, gas)
     }
     
-    /// Execute EVM bytecode
+    /// Execute EVM bytecode via REVM.
+    ///
+    /// * `code`  – bytecode at `address` (used only to verify state is populated; REVM
+    ///             reads it from StateDb via NexusDatabase).
+    /// * `data`  – calldata (ABI-encoded args for regular calls; empty for CREATE).
+    /// * `value` – ETH to transfer; REVM handles the transfer so CALLVALUE is correct.
     fn execute_code(
         &mut self,
         _journal: &mut JournaledState,
-        _caller: &Address,
-        _address: &Address,
+        caller: &Address,
+        address: &Address,
         code: &[u8],
+        data: &[u8],
+        value: U256,
         gas_limit: u64,
     ) -> EvmResult<ExecutionResult> {
-        // In production, this would use REVM for actual execution
-        // This is a simplified placeholder
-        
-        let mut gas_meter = GasMeter::new(gas_limit, self.gas_schedule.clone());
-        let mut logs = Vec::new();
-        let mut output = Vec::new();
-        let mut success = true;
-        
-        // Basic bytecode interpretation would go here
-        // For now, we just consume some gas based on code size
-        let base_cost = code.len() as u64 * 3;
-        if gas_meter.consume(base_cost).is_err() {
-            return Ok(ExecutionResult::revert(gas_limit, vec![]));
+        use revm::{
+            Evm,
+            primitives::{
+                TransactTo, ExecutionResult as RevmExecResult, Output,
+            },
+        };
+        use crate::revm_db::{
+            NexusDatabase, apply_revm_state,
+            to_revm_addr, to_revm_u256, from_revm_addr, from_revm_b256,
+        };
+
+        // Ensure the bytecode is present in StateDb so REVM can load it.
+        // For the CREATE path this is the init code stored by execute_create.
+        // For the CALL path the code is already there from contract deployment.
+        let stored = self.state.get_code(address);
+        if stored != code && !code.is_empty() {
+            self.state.set_code(address, code.to_vec());
         }
-        
-        // Simulate some execution
-        // In reality, this would be a full EVM interpreter loop
-        
-        Ok(ExecutionResult {
-            success,
-            gas_used: gas_meter.used(),
-            gas_refunded: gas_meter.refunded(),
-            output,
-            logs,
-            created_address: None,
+
+        let db = NexusDatabase::new(self.state.clone());
+
+        let chain_id = self.env.chain_id;
+        let block_number = self.env.number;
+        let timestamp = self.env.timestamp;
+        let coinbase = self.env.coinbase.clone();
+        let env_gas_limit = self.env.gas_limit;
+        let revm_caller = to_revm_addr(caller);
+        let revm_to = to_revm_addr(address);
+        let revm_value = to_revm_u256(value);
+        let calldata: revm::primitives::Bytes = data.to_vec().into();
+
+        let mut evm = Evm::builder()
+            .with_db(db)
+            .modify_cfg_env(|cfg| {
+                cfg.chain_id = chain_id;
+            })
+            .modify_block_env(|block| {
+                block.number = revm::primitives::U256::from(block_number);
+                block.timestamp = revm::primitives::U256::from(timestamp);
+                block.coinbase = to_revm_addr(&coinbase);
+                block.gas_limit = revm::primitives::U256::from(env_gas_limit);
+                // basefee = 0 so that gas_price = 0 passes the EIP-1559 check.
+                block.basefee = revm::primitives::U256::ZERO;
+            })
+            .modify_tx_env(|tx| {
+                tx.caller = revm_caller;
+                tx.transact_to = TransactTo::Call(revm_to);
+                tx.data = calldata;
+                tx.value = revm_value;
+                tx.gas_limit = gas_limit;
+                // gas_price = 0: our execute_tx already deducted gas fees externally.
+                tx.gas_price = revm::primitives::U256::ZERO;
+                tx.nonce = None; // nonce already validated and incremented
+            })
+            .build();
+
+        let rs = evm
+            .transact()
+            .map_err(|e| EvmError::StateError(format!("REVM: {e}")))?;
+
+        // Apply the state diff (storage, balances, new code) back to our StateDb.
+        // Destructure first so each field is moved exactly once.
+        let (revm_result, state_changes) = (rs.result, rs.state);
+        apply_revm_state(&self.state, state_changes);
+
+        Ok(match revm_result {
+            RevmExecResult::Success { gas_used, gas_refunded, output, logs, .. } => {
+                let out_bytes = match output {
+                    Output::Call(b) => b.to_vec(),
+                    Output::Create(b, _) => b.to_vec(),
+                };
+                let nexus_logs = logs
+                    .into_iter()
+                    .map(|log| Log {
+                        address: from_revm_addr(log.address),
+                        topics: log
+                            .data
+                            .topics()
+                            .iter()
+                            .map(|t| from_revm_b256(*t))
+                            .collect(),
+                        data: log.data.data.to_vec(),
+                    })
+                    .collect();
+                ExecutionResult {
+                    success: true,
+                    gas_used,
+                    gas_refunded,
+                    output: out_bytes,
+                    logs: nexus_logs,
+                    created_address: None,
+                }
+            }
+            RevmExecResult::Revert { gas_used, output } => {
+                ExecutionResult::revert(gas_used, output.to_vec())
+            }
+            RevmExecResult::Halt { gas_used, .. } => {
+                ExecutionResult::revert(gas_used, vec![])
+            }
         })
     }
     
@@ -458,9 +542,9 @@ impl Executor {
         rlp.extend(nonce_bytes);
         
         let hash = Keccak256::digest(&rlp);
-        Address::from_slice(&hash[12..])
+        Address::from_slice(&hash[12..]).unwrap_or(Address::ZERO)
     }
-    
+
     /// Calculate CREATE2 address
     pub fn calculate_create2_address(
         sender: &Address,
@@ -472,11 +556,29 @@ impl Executor {
         data.extend_from_slice(sender.as_bytes());
         data.extend_from_slice(salt);
         data.extend_from_slice(init_code_hash);
-        
+
         let hash = Keccak256::digest(&data);
-        Address::from_slice(&hash[12..])
+        Address::from_slice(&hash[12..]).unwrap_or(Address::ZERO)
     }
     
+    /// Simulate a call without committing any state changes (eth_call / eth_estimateGas).
+    /// Returns `(output_bytes, gas_used)`.
+    pub fn call_dry_run(
+        &mut self,
+        caller: Address,
+        to: Address,
+        value: U256,
+        data: Vec<u8>,
+        gas: u64,
+    ) -> EvmResult<(Vec<u8>, u64)> {
+        let mut journal = JournaledState::new(self.state.clone());
+        let checkpoint = journal.checkpoint();
+        let result = self.execute_call(&mut journal, &caller, &to, value, &data, gas);
+        // Always revert — this is a read-only simulation.
+        journal.revert_checkpoint(checkpoint);
+        result.map(|r| (r.output, r.gas_used))
+    }
+
     /// Execute batch of transactions (for parallel DAG processing)
     pub fn execute_batch(&mut self, txs: Vec<Transaction>) -> Vec<EvmResult<Receipt>> {
         // In a DAG, we can potentially execute independent transactions in parallel
@@ -484,7 +586,7 @@ impl Executor {
         txs.iter().map(|tx| self.execute_tx(tx)).collect()
     }
     
-    /// Get access list gas cost
+    #[allow(dead_code)]
     fn access_address(&mut self, address: &Address) -> u64 {
         if self.accessed_addresses.insert(address.clone()) {
             self.gas_schedule.cold_account_access
@@ -493,6 +595,7 @@ impl Executor {
         }
     }
     
+    #[allow(dead_code)]
     fn access_storage(&mut self, address: &Address, key: &U256) -> u64 {
         if self.accessed_storage.insert((address.clone(), key.clone())) {
             self.gas_schedule.cold_sload
@@ -526,7 +629,7 @@ mod tests {
         let state = Arc::new(StateDb::new());
         let executor = Executor::new(state, EvmEnv::default());
         
-        let sender = Address::from([0x42u8; 20]);
+        let sender = Address::new([0x42u8; 20]);
         let addr = executor.calculate_create_address(&sender, 0);
         
         // Address should be 20 bytes
@@ -535,7 +638,7 @@ mod tests {
     
     #[test]
     fn test_create2_address() {
-        let sender = Address::from([0x42u8; 20]);
+        let sender = Address::new([0x42u8; 20]);
         let salt = [0u8; 32];
         let init_code_hash = Keccak256::digest(b"init code").into();
         

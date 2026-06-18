@@ -2,12 +2,12 @@
 
 use std::collections::VecDeque;
 use std::sync::Arc;
-use tokio::sync::mpsc;
+use parking_lot::RwLock;
 use tracing::{debug, info, warn};
 
-use nexus_primitives::Hash;
-use nexus_dag::{Dag, Vertex};
-use crate::{NetworkResult, NetworkError, SyncRequest, SyncResponse};
+use nexus_primitives::{Hash, Transaction};
+use nexus_dag::{Dag, DagConfig, Vertex};
+use crate::{NetworkResult, SyncRequest, SyncResponse};
 
 /// Sync state
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -51,6 +51,10 @@ pub struct SyncManager {
     state: SyncState,
     pending_requests: VecDeque<Hash>,
     in_flight: usize,
+    /// Callback to look up pending transactions by hash (injected from the mempool).
+    tx_provider: Option<Arc<dyn Fn(&[Hash]) -> Vec<Transaction> + Send + Sync>>,
+    /// Last BFT-finalized vertex hash, updated by the consensus layer.
+    finalized_tip: Option<Arc<RwLock<Option<Hash>>>>,
 }
 
 impl SyncManager {
@@ -61,7 +65,22 @@ impl SyncManager {
             state: SyncState::Idle,
             pending_requests: VecDeque::new(),
             in_flight: 0,
+            tx_provider: None,
+            finalized_tip: None,
         }
+    }
+
+    /// Provide a function that resolves transaction hashes against the local mempool.
+    pub fn set_tx_provider<F>(&mut self, f: F)
+    where
+        F: Fn(&[Hash]) -> Vec<Transaction> + Send + Sync + 'static,
+    {
+        self.tx_provider = Some(Arc::new(f));
+    }
+
+    /// Share the finalized-tip pointer written by the BFT consensus engine.
+    pub fn set_finalized_tip(&mut self, tip: Arc<RwLock<Option<Hash>>>) {
+        self.finalized_tip = Some(tip);
     }
     
     /// Handle sync request
@@ -69,33 +88,47 @@ impl SyncManager {
         match request {
             SyncRequest::GetVertices(hashes) => {
                 let vertices: Vec<Vertex> = hashes.iter()
-                    .filter_map(|h| self.dag.get_vertex(h))
+                    .filter_map(|h| self.dag.get_vertex(h).map(|v| (*v).clone()))
                     .collect();
                 SyncResponse::Vertices(vertices)
             }
-            
+
             SyncRequest::GetVerticesSince { height, limit } => {
-                // Get vertices above height
-                let vertices: Vec<Vertex> = self.dag.vertices_above_height(height)
-                    .into_iter()
-                    .take(limit as usize)
-                    .collect();
+                let mut vertices: Vec<Vertex> = Vec::new();
+                let current_height = self.dag.latest_height();
+                let mut h = height + 1;
+                while h <= current_height && vertices.len() < limit as usize {
+                    for hash in self.dag.get_vertices_at_height(h) {
+                        if let Some(v) = self.dag.get_vertex(&hash) {
+                            vertices.push((*v).clone());
+                        }
+                        if vertices.len() >= limit as usize {
+                            break;
+                        }
+                    }
+                    h += 1;
+                }
                 SyncResponse::Vertices(vertices)
             }
             
-            SyncRequest::GetTransactions(_hashes) => {
-                // Would need tx pool integration
-                SyncResponse::Transactions(vec![])
+            SyncRequest::GetTransactions(hashes) => {
+                let txs = match &self.tx_provider {
+                    Some(provider) => provider(&hashes),
+                    None => vec![],
+                };
+                SyncResponse::Transactions(txs)
             }
-            
+
             SyncRequest::GetTips => {
                 let tips = self.dag.tips();
                 SyncResponse::Tips(tips)
             }
-            
+
             SyncRequest::GetFinalized => {
-                // Would need consensus integration
-                SyncResponse::Finalized(None)
+                let hash = self.finalized_tip
+                    .as_ref()
+                    .and_then(|tip: &Arc<RwLock<Option<Hash>>>| *tip.read());
+                SyncResponse::Finalized(hash)
             }
         }
     }
@@ -182,7 +215,7 @@ mod tests {
     
     #[test]
     fn test_sync_state() {
-        let dag = Arc::new(Dag::new());
+        let dag = Arc::new(Dag::new(DagConfig::default()));
         let mut sync = SyncManager::new(SyncConfig::default(), dag);
         
         assert_eq!(sync.state(), SyncState::Idle);

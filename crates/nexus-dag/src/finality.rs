@@ -4,16 +4,15 @@
 //! deterministic finality requires a BFT consensus overlay. This module
 //! implements a GRANDPA-inspired finality mechanism adapted for DAGs.
 
-use crate::{Dag, Vertex, VertexStatus};
+use crate::Dag;
 use nexus_primitives::{
     Address, EcdsaSignature, Hash, Height, NexusError, PublicKey, Result,
-    SecretKey, Timestamp, ValidatorId, Weight,
+    SecretKey, ValidatorId, Weight,
 };
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
-use std::sync::Arc;
-use tracing::{debug, info, warn};
+use tracing::{debug, info};
 
 /// Finality configuration
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -246,6 +245,7 @@ pub struct FinalityState {
 
 /// The finality gadget
 pub struct FinalityGadget {
+    #[allow(dead_code)]
     config: FinalityConfig,
     state: RwLock<FinalityState>,
     validator_set: RwLock<ValidatorSet>,

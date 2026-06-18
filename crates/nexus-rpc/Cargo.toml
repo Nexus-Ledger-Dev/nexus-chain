@@ -9,7 +9,8 @@ nexus-primitives = { path = "../nexus-primitives" }
 nexus-dag = { path = "../nexus-dag" }
 nexus-evm = { path = "../nexus-evm" }
 nexus-consensus = { path = "../nexus-consensus" }
-# nexus-iso = { path = "../nexus-iso" }
+nexus-zkp = { path = "../nexus-zkp" }
+nexus-iso = { path = "../nexus-iso" }
 
 # HTTP/RPC
 axum = { version = "0.7", features = ["json"] }
@@ -28,6 +29,7 @@ serde_json = "1"
 thiserror = "1"
 tracing = "0.1"
 hex = "0.4"
+sha3 = "0.10"
 
 [dev-dependencies]
 tokio-test = "0.4"

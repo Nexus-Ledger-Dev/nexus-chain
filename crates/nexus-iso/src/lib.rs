@@ -1,6 +1,8 @@
 //! ISO Compliance Module for NexusChain
-//! 
+//!
 //! Provides ISO 20022 and ISO 8583 message handling for financial services compliance.
+
+#![allow(ambiguous_glob_reexports)]
 
 pub mod iso20022;
 pub mod iso8583;

@@ -1,16 +1,15 @@
 //! ZKP Verifier implementation
 
 use crate::{prover::SerializedProof, ZkpError, ZkpResult};
-use ark_bn254::{Bn254, Fr};
+use ark_bn254::Bn254;
 use ark_groth16::{Groth16, PreparedVerifyingKey, VerifyingKey};
 use ark_serialize::{CanonicalDeserialize, CanonicalSerialize};
 use ark_snark::SNARK;
-use nexus_primitives::Hash;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::sync::Arc;
 use parking_lot::RwLock;
-use tracing::{debug, warn};
+use tracing::debug;
 
 /// Verifying keys for different circuit types
 #[derive(Clone)]

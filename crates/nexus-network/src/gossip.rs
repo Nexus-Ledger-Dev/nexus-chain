@@ -1,11 +1,10 @@
 //! Gossip protocol implementation
 
-use std::collections::HashSet;
-use std::sync::Arc;
 use dashmap::DashMap;
 use tokio::sync::mpsc;
-use tracing::{debug, info, warn};
+use tracing::debug;
 
+use sha3::Digest;
 use nexus_primitives::Hash;
 use crate::{NetworkMessage, NetworkResult, NetworkError};
 

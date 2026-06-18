@@ -58,7 +58,7 @@ impl Vertex {
         validator: Address,
         parents: Vec<Hash>,
         tx_hashes: Vec<Hash>,
-        epoch: u64,
+        _epoch: u64,
         height: u64,
     ) -> Self {
         // Compute timestamp (current UNIX ms)
@@ -122,6 +122,36 @@ impl Vertex {
         }
     }
     
+    /// Create a vertex with explicit fields — for use in tests only.
+    #[cfg(test)]
+    pub fn new_for_test(
+        parents: Vec<Hash>,
+        height: u64,
+        timestamp: Timestamp,
+        validator: ValidatorId,
+        tx_hashes: Vec<Hash>,
+        state_root: Hash,
+        receipts_root: Hash,
+    ) -> Self {
+        let tx_root = compute_merkle_root(&tx_hashes);
+        let hash = vertex_hash(&parents, &tx_hashes, timestamp, &validator.0);
+        Self {
+            hash,
+            parents,
+            height: height as Height,
+            timestamp,
+            validator,
+            transactions: Vec::new(),
+            tx_root,
+            state_root,
+            receipts_root,
+            weight: 1,
+            signature: EcdsaSignature { r: [0; 32], s: [0; 32], v: 0 },
+            version: nexus_primitives::PROTOCOL_VERSION,
+            extra_data: Vec::new(),
+        }
+    }
+
     /// Check if this is the genesis vertex
     pub fn is_genesis(&self) -> bool {
         self.parents.is_empty() && self.height == 0

@@ -21,26 +21,42 @@ pub struct PoseidonParams {
 }
 
 impl PoseidonParams {
-    /// Create parameters for width 3 (2 inputs + 1 capacity)
+    /// Create parameters for width 3 (2 inputs + 1 capacity) on BN254.
+    ///
+    /// Round constants: derived via BLAKE3 with domain separator
+    /// "poseidon_bn254_rc_NNNN", following the "nothing up my sleeve"
+    /// paradigm from the Poseidon specification (Grassi et al. 2019).
+    ///
+    /// MDS matrix: Cauchy construction M[i][j] = 1 / (x[i] + y[j])
+    /// with x = [1,2,3], y = [4,5,6].  Provably MDS by Cauchy determinant.
     pub fn new_width3() -> Self {
-        // These would be generated via the Poseidon specification
-        // Using placeholder values for demonstration
         let width = 3;
         let full_rounds = 8;
         let partial_rounds = 57;
-        
-        let total_rounds = full_rounds + partial_rounds;
-        let round_constants: Vec<Fr> = (0..total_rounds * width)
-            .map(|i| Fr::from(i as u64 + 1))
+        let total_constants = (full_rounds + partial_rounds) * width;
+
+        // Round constants: rc[i] = BLAKE3("poseidon_bn254_rc_NNNN") mod Fr
+        let round_constants: Vec<Fr> = (0..total_constants)
+            .map(|i| {
+                let domain = format!("poseidon_bn254_rc_{:04}", i);
+                let hash = blake3::hash(domain.as_bytes());
+                Fr::from_le_bytes_mod_order(hash.as_bytes())
+            })
             .collect();
-        
-        // Simple MDS matrix (would be properly generated in production)
-        let mds_matrix = vec![
-            vec![Fr::from(2u64), Fr::from(1u64), Fr::from(1u64)],
-            vec![Fr::from(1u64), Fr::from(2u64), Fr::from(1u64)],
-            vec![Fr::from(1u64), Fr::from(1u64), Fr::from(2u64)],
-        ];
-        
+
+        // Cauchy MDS matrix: M[i][j] = inverse(x[i] + y[j])
+        // x = {1,2,3}, y = {4,5,6} — disjoint, so all denominators are non-zero.
+        use ark_ff::Field;
+        let x: Vec<Fr> = [1u64, 2, 3].iter().map(|&v| Fr::from(v)).collect();
+        let y: Vec<Fr> = [4u64, 5, 6].iter().map(|&v| Fr::from(v)).collect();
+        let mds_matrix: Vec<Vec<Fr>> = (0..width)
+            .map(|i| {
+                (0..width)
+                    .map(|j| (x[i] + y[j]).inverse().expect("Cauchy denominator non-zero"))
+                    .collect()
+            })
+            .collect();
+
         Self {
             round_constants,
             mds_matrix,

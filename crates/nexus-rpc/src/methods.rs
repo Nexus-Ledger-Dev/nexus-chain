@@ -1,6 +1,7 @@
 //! RPC method dispatcher
 
 use std::sync::Arc;
+use std::sync::atomic::AtomicUsize;
 use serde_json::Value;
 use tracing::debug;
 
@@ -8,7 +9,9 @@ use nexus_dag::Dag;
 use nexus_evm::StateDb;
 use nexus_consensus::ProofOfStake;
 
-use crate::{RpcResult, RpcError, EthHandler, NexusHandler};
+use crate::{RpcResult, RpcError, mempool::Mempool};
+use crate::eth::EthHandler;
+use crate::nexus::NexusHandler;
 
 /// RPC method dispatcher
 pub struct MethodDispatcher {
@@ -23,9 +26,11 @@ impl MethodDispatcher {
         pos: Arc<ProofOfStake>,
         zkp: Arc<Box<dyn nexus_zkp::Verifier + Send + Sync>>,
         chain_id: u64,
+        mempool: Arc<Mempool>,
+        peer_count: Arc<AtomicUsize>,
     ) -> Self {
         Self {
-            eth: EthHandler::new(dag.clone(), state.clone(), pos.clone(), chain_id),
+            eth: EthHandler::new(dag.clone(), state.clone(), pos.clone(), chain_id, mempool, peer_count),
             nexus: NexusHandler::new(dag, state, pos, zkp),
         }
     }
@@ -83,5 +88,3 @@ impl MethodDispatcher {
     }
 }
 
-pub use crate::eth::EthHandler;
-pub use crate::nexus::NexusHandler;

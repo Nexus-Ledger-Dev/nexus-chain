@@ -9,8 +9,10 @@ use std::sync::Arc;
 use parking_lot::RwLock;
 use tokio::sync::mpsc;
 
+#[allow(dead_code)]
 pub(crate) static LOGGER: OnceCell<Mutex<IsoLogger>> = OnceCell::new();
 use sha3::{Digest, Keccak256};
+use k256::ecdsa::{VerifyingKey, Signature as EcdsaSig, signature::Verifier as EcdsaVerifier};
 
 use nexus_primitives::{Address, Hash};
 use crate::{ConsensusError, ConsensusResult, ValidatorSet, ValidatorKeys};
@@ -181,6 +183,15 @@ impl Default for BftRoundState {
     }
 }
 
+/// Verify a k256 ECDSA signature produced by `ValidatorKeys::sign_hash`.
+/// `pubkey` is a compressed SEC1 point (33 bytes); `message` is the raw bytes
+/// that were passed to `signing_key.sign(...)`.
+fn verify_ecdsa(pubkey: &[u8], message: &[u8], sig_bytes: &[u8]) -> bool {
+    let Ok(vk) = VerifyingKey::from_sec1_bytes(pubkey) else { return false };
+    let Ok(sig) = EcdsaSig::try_from(sig_bytes) else { return false };
+    vk.verify(message, &sig).is_ok()
+}
+
 /// BFT consensus engine
 pub struct BftConsensus {
     /// Validator keys
@@ -325,10 +336,16 @@ impl BftConsensus {
             }
         }
         
-        drop(state);
-        
-        // TODO: Verify signature
-        
+        // Verify proposer signature against the proposal's signing hash.
+        {
+            let validators = self.validator_set.read();
+            let proposer = validators.get(&proposal.proposer)
+                .ok_or_else(|| ConsensusError::UnknownValidator(format!("{:?}", proposal.proposer)))?;
+            if !verify_ecdsa(&proposer.pubkey, proposal.signing_hash().as_bytes(), &proposal.signature) {
+                return Err(ConsensusError::InvalidSignature);
+            }
+        }
+
         // Accept proposal
         let mut state = self.state.write();
         state.proposal = Some(proposal.clone());
@@ -365,11 +382,14 @@ impl BftConsensus {
         let validator = validators.get(&vote.voter)
             .ok_or_else(|| ConsensusError::UnknownValidator(format!("{:?}", vote.voter)))?;
         
-        let stake = validator.stake;
+        let _stake = validator.stake;
+        let pubkey = validator.pubkey.clone();
         drop(validators);
-        
-        // TODO: Verify signature
-        
+
+        if !verify_ecdsa(&pubkey, vote.signing_hash().as_bytes(), &vote.signature) {
+            return Err(ConsensusError::InvalidSignature);
+        }
+
         // Add vote
         let mut state = self.state.write();
         
@@ -427,12 +447,16 @@ impl BftConsensus {
     pub fn on_commit(&self, vote: CommitVote) -> ConsensusResult<Option<Hash>> {
         let validators = self.validator_set.read();
         
-        // Verify voter
-        validators.get(&vote.voter)
-            .ok_or_else(|| ConsensusError::UnknownValidator(format!("{:?}", vote.voter)))?;
-        
-        // TODO: Verify signature
-        
+        // Verify voter and signature.
+        let pubkey = validators.get(&vote.voter)
+            .ok_or_else(|| ConsensusError::UnknownValidator(format!("{:?}", vote.voter)))?
+            .pubkey.clone();
+        drop(validators);
+
+        if !verify_ecdsa(&pubkey, vote.signing_hash().as_bytes(), &vote.signature) {
+            return Err(ConsensusError::InvalidSignature);
+        }
+
         let mut state = self.state.write();
         
         if state.phase != BftPhase::Commit {
@@ -445,28 +469,26 @@ impl BftConsensus {
         
         let vertex_hash = vote.vertex_hash.clone();
         state.commit_votes.insert(vote.voter.clone(), vote);
-        
-        // Check if we have 2f+1 commit votes
+
+        // Re-acquire validators to check supermajority (dropped after sig check above).
+        let validators = self.validator_set.read();
         let commit_stake: u64 = state.commit_votes.values()
             .filter_map(|v| validators.get(&v.voter))
             .map(|v| v.stake)
             .sum();
-        
+
         if validators.has_supermajority(commit_stake) {
             state.phase = BftPhase::Finalized;
-            
+
             drop(state);
             drop(validators);
-            
-            // Mark as finalized
+
             self.finalized.write().insert(vertex_hash.clone());
-            
-            // Advance view
             self.advance_view();
-            
+
             return Ok(Some(vertex_hash));
         }
-        
+
         Ok(None)
     }
     

@@ -100,7 +100,7 @@ impl StateDb {
     /// Add to account balance
     pub fn add_balance(&self, address: &Address, amount: U256) -> EvmResult<()> {
         let account = self.get_account(address);
-        let new_balance = account.balance.checked_add(amount)
+        let new_balance = account.balance.checked_add(&amount)
             .ok_or_else(|| EvmError::StateError("Balance overflow".into()))?;
         self.set_balance(address, new_balance);
         Ok(())
@@ -187,6 +187,13 @@ impl StateDb {
         self.accounts.contains_key(address)
     }
     
+    /// Iterate all accounts (used for genesis export and state snapshotting)
+    pub fn all_accounts(&self) -> Vec<(Address, Account)> {
+        self.accounts.iter()
+            .map(|e| (e.key().clone(), e.value().clone()))
+            .collect()
+    }
+
     /// Delete account (SELFDESTRUCT)
     pub fn delete_account(&self, address: &Address) {
         self.accounts.remove(address);
@@ -208,7 +215,7 @@ impl StateDb {
         for entry in self.accounts.iter() {
             hasher.update(entry.key().as_bytes());
             hasher.update(&entry.value().nonce.to_le_bytes());
-            hasher.update(entry.value().balance.to_le_bytes());
+            hasher.update(entry.value().balance.to_be_bytes());
             hasher.update(entry.value().code_hash.as_bytes());
         }
         

@@ -225,7 +225,7 @@ impl FeeMarket {
             let fee_delta = self.base_fee_per_gas * U256::from(gas_delta)
                 / U256::from(target)
                 / U256::from(self.max_change_denominator);
-            self.base_fee_per_gas.saturating_sub(fee_delta)
+            self.base_fee_per_gas.checked_sub(&fee_delta).unwrap_or(U256::ZERO)
         };
         
         // Apply bounds

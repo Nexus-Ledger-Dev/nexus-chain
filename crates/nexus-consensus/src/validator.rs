@@ -2,9 +2,8 @@
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::sync::Arc;
 use parking_lot::RwLock;
-use k256::ecdsa::{SigningKey, VerifyingKey, signature::Signer};
+use k256::ecdsa::{SigningKey, signature::Signer};
 use sha3::{Digest, Keccak256};
 
 use nexus_primitives::{Address, Hash};
@@ -164,6 +163,7 @@ impl ValidatorSet {
 }
 
 /// Validator key management
+#[derive(Clone)]
 pub struct ValidatorKeys {
     /// Signing key
     signing_key: SigningKey,

@@ -1,6 +1,7 @@
 //! Transaction execution receipts
 
 use serde::{Deserialize, Serialize};
+use sha3::Digest;
 use nexus_primitives::{Address, Hash, U256};
 
 /// Log entry (event)

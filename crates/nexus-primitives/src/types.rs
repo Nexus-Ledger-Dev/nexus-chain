@@ -138,7 +138,7 @@ impl U256 {
 }
 
 // Basic arithmetic and conversion traits for U256 (very naive implementation)
-use std::ops::{Add, Sub, Mul};
+use std::ops::{Add, Sub, Mul, Div};
 use std::hash::{Hash as StdHash, Hasher};
 use std::cmp::Ordering;
 
@@ -159,38 +159,30 @@ impl Sub for U256 {
 impl Mul for U256 {
     type Output = Self;
     fn mul(self, rhs: Self) -> Self {
-        // naive schoolbook multiplication (limited to 128‑bit values for demo)
+        // Schoolbook multiply using u128 per cell to avoid intermediate overflow.
+        // High bits beyond 256 are discarded (wrapping semantics, correct for EVM).
         let mut result = [0u64; 4];
         for i in 0..4 {
-            for j in 0..4 {
-                if i + j < 4 {
-                    let (low, carry) = self.0[i].overflowing_mul(rhs.0[j]);
-                    let (sum, overflow) = result[i + j].overflowing_add(low);
-                    result[i + j] = sum;
-                    if i + j + 1 < 4 {
-                        let (new, _) = result[i + j + 1].overflowing_add(carry as u64 + overflow as u64);
-                        result[i + j + 1] = new;
-                    }
-                }
+            let mut carry: u64 = 0;
+            for j in 0..(4 - i) {
+                let pos = i + j;
+                // u64 * u64 + u64 + u64 fits in u128 (max ≈ 2^128 - 1)
+                let product = (self.0[i] as u128) * (rhs.0[j] as u128)
+                    + result[pos] as u128
+                    + carry as u128;
+                result[pos] = product as u64;
+                carry = (product >> 64) as u64;
             }
+            // carry past 256 bits is intentionally discarded
         }
         Self(result)
     }
 }
 
-// Implement division for U256 (placeholder integer division)
-impl std::ops::Div for U256 {
+impl Div for U256 {
     type Output = Self;
     fn div(self, rhs: Self) -> Self {
-        if rhs.0 == [0,0,0,0] {
-            panic!("division by zero");
-        }
-        // simple naive division using larger integer conversion (fallback)
-        // Convert to u128 if possible (only works for small values)
-        let lhs = ((self.0[1] as u128) << 64) | (self.0[0] as u128);
-        let rhs_val = ((rhs.0[1] as u128) << 64) | (rhs.0[0] as u128);
-        let result = lhs / rhs_val;
-        Self([result as u64, (result >> 64) as u64, 0, 0])
+        self.checked_div(&rhs).expect("U256 division by zero")
     }
 }
 
@@ -218,11 +210,73 @@ impl Ord for U256 {
 
 impl U256 {
     pub fn as_u64(&self) -> u64 { self.0[0] }
+
+    /// Checked division. Returns `None` on divide-by-zero.
+    pub fn checked_div(&self, other: &Self) -> Option<Self> {
+        if *other == Self::ZERO {
+            return None;
+        }
+        if *self < *other {
+            return Some(Self::ZERO);
+        }
+        // Bit-by-bit long division (constant time proportional to bit width).
+        let mut quotient = Self::ZERO;
+        let mut remainder = Self::ZERO;
+        for i in (0..256).rev() {
+            remainder = remainder.shl1();
+            if self.bit(i) {
+                remainder.0[0] |= 1;
+            }
+            if remainder >= *other {
+                remainder = remainder.checked_sub(other).unwrap();
+                quotient = quotient.set_bit(i);
+            }
+        }
+        Some(quotient)
+    }
+
+    fn bit(&self, pos: usize) -> bool {
+        (self.0[pos / 64] >> (pos % 64)) & 1 == 1
+    }
+
+    fn shl1(&self) -> Self {
+        let mut r = [0u64; 4];
+        let mut carry = 0u64;
+        for i in 0..4 {
+            r[i] = (self.0[i] << 1) | carry;
+            carry = self.0[i] >> 63;
+        }
+        Self(r)
+    }
+
+    fn set_bit(mut self, pos: usize) -> Self {
+        self.0[pos / 64] |= 1u64 << (pos % 64);
+        self
+    }
 }
 
 impl fmt::Debug for U256 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "0x{}", hex::encode(self.to_be_bytes()))
+    }
+}
+
+impl fmt::Display for U256 {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if *self == Self::ZERO {
+            return write!(f, "0");
+        }
+        let mut digits = Vec::new();
+        let mut n = *self;
+        let ten = Self::from(10u64);
+        while n > Self::ZERO {
+            let q = n.checked_div(&ten).unwrap();
+            let rem = n.checked_sub(&(q * ten)).unwrap();
+            digits.push(b'0' + rem.as_u64() as u8);
+            n = q;
+        }
+        digits.reverse();
+        f.write_str(std::str::from_utf8(&digits).unwrap())
     }
 }
 
@@ -325,12 +379,39 @@ mod tests {
     fn test_u256_arithmetic() {
         let a = U256::from_u64(100);
         let b = U256::from_u64(50);
-        
+
         let sum = a.checked_add(&b).unwrap();
         assert_eq!(sum.0[0], 150);
-        
+
         let diff = a.checked_sub(&b).unwrap();
         assert_eq!(diff.0[0], 50);
+    }
+
+    #[test]
+    fn test_u256_mul_full_width() {
+        // Verify multiplication that requires more than 128 bits of intermediate space.
+        let a = U256([0, 1, 0, 0]); // 2^64
+        let b = U256([0, 1, 0, 0]); // 2^64
+        let product = a * b;        // 2^128 → lands in limb[2]
+        assert_eq!(product, U256([0, 0, 1, 0]));
+
+        // Simple sanity: 6 * 7 = 42
+        assert_eq!(U256::from_u64(6) * U256::from_u64(7), U256::from_u64(42));
+    }
+
+    #[test]
+    fn test_u256_div() {
+        assert_eq!(U256::from_u64(100) / U256::from_u64(10), U256::from_u64(10));
+        assert_eq!(U256::from_u64(7) / U256::from_u64(3), U256::from_u64(2));
+        assert_eq!(U256::from_u64(0) / U256::from_u64(5), U256::ZERO);
+
+        // Verify divide-by-zero returns None via checked_div
+        assert!(U256::from_u64(1).checked_div(&U256::ZERO).is_none());
+
+        // Wide value: 2^128 / 2^64 = 2^64
+        let wide = U256([0, 0, 1, 0]); // 2^128
+        let divisor = U256([0, 1, 0, 0]); // 2^64
+        assert_eq!(wide / divisor, U256([0, 1, 0, 0]));
     }
     
     #[test]

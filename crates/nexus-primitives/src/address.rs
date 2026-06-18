@@ -62,8 +62,6 @@ impl Address {
     
     /// Create contract address from deployer and nonce (CREATE opcode)
     pub fn create_contract_address(deployer: &Address, nonce: u64) -> Self {
-        use alloy_rlp::Encodable;
-        
         // RLP encode [deployer, nonce]
         let mut buf = Vec::new();
         

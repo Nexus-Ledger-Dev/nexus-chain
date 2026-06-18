@@ -1,6 +1,6 @@
 //! Metrics and monitoring for DAG consensus
 
-use nexus_primitives::{Height, Timestamp};
+use nexus_primitives::Timestamp;
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
 use std::collections::VecDeque;
@@ -179,7 +179,7 @@ impl MetricsCollector {
 
 /// Throughput analyzer
 pub struct ThroughputAnalyzer {
-    /// Sample period (seconds)
+    #[allow(dead_code)]
     sample_period_secs: u64,
     
     /// Historical TPS samples

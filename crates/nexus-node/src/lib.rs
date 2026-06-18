@@ -5,6 +5,7 @@
 pub mod config;
 pub mod node;
 pub mod cli;
+pub mod genesis;
 
 pub use config::*;
 pub use node::*;

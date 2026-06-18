@@ -6,7 +6,7 @@
 //! - Preventing double-spending
 //! - Ensuring convergence of the DAG
 
-use crate::{Dag, Vertex, VertexStatus};
+use crate::{Dag, VertexStatus};
 use nexus_primitives::{Hash, Height, Weight};
 use rand::prelude::*;
 use rand::seq::SliceRandom;
@@ -342,7 +342,7 @@ impl TipSelector {
             .map(|(h, s)| (*h, (s - max_score).exp()))
             .collect();
         
-        let total: f64 = exp_scores.iter().map(|(_, s)| *s).sum();
+        let _total: f64 = exp_scores.iter().map(|(_, s)| *s).sum();
         
         let mut selected = Vec::with_capacity(count);
         let mut remaining = exp_scores;
@@ -453,7 +453,7 @@ pub enum TipValidationError {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::DagConfig;
+    use crate::{DagConfig, Vertex};
     
     fn setup_dag() -> Dag {
         let dag = Dag::new(DagConfig::default());

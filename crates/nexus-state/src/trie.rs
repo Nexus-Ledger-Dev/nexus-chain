@@ -169,13 +169,13 @@ impl MerkleTrie {
                     if common_len < remaining.len() {
                         let new_leaf = TrieNode::Leaf {
                             key_end: remaining[common_len + 1..].to_vec(),
-                            value,
+                            value: value.clone(),
                         };
                         let new_hash = new_leaf.hash();
                         self.nodes.insert(new_hash.clone(), new_leaf);
                         children[remaining[common_len] as usize] = Some(new_hash);
                     }
-                    
+
                     let branch = TrieNode::Branch {
                         children,
                         value: if common_len == remaining.len() {

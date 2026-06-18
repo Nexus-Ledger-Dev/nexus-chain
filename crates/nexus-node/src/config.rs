@@ -195,12 +195,7 @@ impl NodeConfig {
     
     /// Validate configuration
     pub fn validate(&self) -> Result<(), ConfigError> {
-        if self.consensus.validator && self.consensus.validator_key.is_none() {
-            return Err(ConfigError::Invalid(
-                "Validator mode requires validator_key".into()
-            ));
-        }
-        
+        // validator_key = None is fine — Node::new() auto-generates an ephemeral keypair
         Ok(())
     }
 }

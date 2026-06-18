@@ -1,7 +1,6 @@
 //! Peer management
 
-use std::collections::HashMap;
-use std::time::{Duration, Instant};
+use std::time::Duration;
 use dashmap::DashMap;
 use serde::{Deserialize, Serialize};
 
@@ -71,7 +70,7 @@ pub struct PeerManager {
     stats: DashMap<PeerId, PeerStats>,
     /// Maximum peers
     max_peers: usize,
-    /// Ban duration
+    #[allow(dead_code)]
     ban_duration: Duration,
 }
 

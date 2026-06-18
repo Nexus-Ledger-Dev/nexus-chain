@@ -3,7 +3,6 @@
 use std::sync::Arc;
 use serde_json::{json, Value};
 
-use nexus_primitives::Hash;
 use nexus_dag::Dag;
 use nexus_evm::StateDb;
 use nexus_consensus::ProofOfStake;
@@ -38,15 +37,14 @@ impl NexusHandler {
     
     /// nexus_dagInfo - Get DAG statistics
     pub fn dag_info(&self) -> RpcResult<Value> {
-        let metrics = self.dag.metrics();
-        
+        let stats = self.dag.stats();
+
         Ok(json!({
-            "totalVertices": metrics.total_vertices,
-            "totalTransactions": metrics.total_transactions,
-            "currentTips": metrics.tips_count,
-            "maxHeight": self.dag.max_height(),
-            "avgParents": metrics.avg_parents_per_vertex,
-            "throughputTps": metrics.throughput_tps,
+            "totalVertices": stats.total_vertices,
+            "currentTips": stats.tips_count,
+            "pendingVertices": stats.pending_count,
+            "latestHeight": stats.latest_height,
+            "finalizedHeight": stats.finalized_height,
         }))
     }
     
@@ -60,15 +58,15 @@ impl NexusHandler {
         let vertex = self.dag.get_vertex(&hash)
             .ok_or_else(|| RpcError::NotFound("Vertex not found".into()))?;
         
+        let status = self.dag.get_status(&hash);
         Ok(json!({
             "hash": format_hash(&vertex.hash),
-            "height": vertex.height.as_u64(),
-            "epoch": vertex.epoch,
-            "proposer": format_address(&vertex.proposer),
+            "height": vertex.height,
+            "validator": format!("0x{}", hex::encode(&vertex.validator.0)),
             "parents": vertex.parents.iter().map(format_hash).collect::<Vec<_>>(),
-            "transactions": vertex.transactions.iter().map(format_hash).collect::<Vec<_>>(),
+            "transactions": vertex.transactions.iter().map(|tx| format_hash(&tx.hash())).collect::<Vec<_>>(),
             "timestamp": vertex.timestamp,
-            "state": format!("{:?}", vertex.state),
+            "status": format!("{:?}", status),
         }))
     }
     
@@ -85,8 +83,9 @@ impl NexusHandler {
             .and_then(parse_hash)
             .ok_or_else(|| RpcError::InvalidParams("Invalid hash".into()))?;
         
-        let parents = self.dag.get_parents(&hash);
-        Ok(json!(parents.iter().map(format_hash).collect::<Vec<_>>()))
+        let vertex = self.dag.get_vertex(&hash)
+            .ok_or_else(|| RpcError::NotFound("Vertex not found".into()))?;
+        Ok(json!(vertex.parents.iter().map(format_hash).collect::<Vec<_>>()))
     }
     
     /// nexus_getChildren - Get vertex children
@@ -107,10 +106,10 @@ impl NexusHandler {
             .and_then(parse_hash)
             .ok_or_else(|| RpcError::InvalidParams("Invalid hash".into()))?;
         
-        let vertex = self.dag.get_vertex(&hash)
+        let _vertex = self.dag.get_vertex(&hash)
             .ok_or_else(|| RpcError::NotFound("Vertex not found".into()))?;
-        
-        Ok(json!(vertex.state == nexus_dag::VertexStatus::Finalized))
+
+        Ok(json!(self.dag.get_status(&hash) == Some(nexus_dag::VertexStatus::Finalized)))
     }
     
     /// nexus_validators - Get validator set
@@ -204,27 +203,23 @@ impl NexusHandler {
         Ok(json!({ "verified": verified }))
     }
     
-    /// nexus_getProof - Get Merkle proof for state
+    /// nexus_getProof - Get account state proof
     pub fn get_proof(&self, params: &Value) -> RpcResult<Value> {
         let address = params.get(0)
             .and_then(|v| v.as_str())
             .and_then(parse_address)
             .ok_or_else(|| RpcError::InvalidParams("Invalid address".into()))?;
-        
-        let proof = self.state.prove(&address)
-            .ok_or_else(|| RpcError::NotFound("Proof not found".into()))?;
-            
-        let proof_nodes: Vec<String> = proof.nodes.iter()
-            .map(|node| hex::encode(node.rlp_encode()))
-            .collect();
-            
+
+        if !self.state.account_exists(&address) {
+            return Err(RpcError::NotFound("Account not found".into()));
+        }
+
         Ok(json!({
             "address": format_address(&address),
             "balance": format_u256(&self.state.get_balance(&address)),
             "nonce": self.state.get_nonce(&address),
             "codeHash": format_hash(&self.state.get_code_hash(&address)),
-            "proof": proof_nodes,
-            "root": format_hash(&proof.root),
+            "stateRoot": format_hash(&self.state.state_root()),
         }))
     }
 }

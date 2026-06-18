@@ -4,7 +4,6 @@
 //! used by SWIFT, SEPA, and most modern payment systems.
 
 use crate::{IsoError, IsoResult};
-use chrono::{DateTime, Utc};
 use quick_xml::de::from_str;
 use quick_xml::se::to_string;
 use serde::{Deserialize, Serialize};
@@ -787,12 +786,12 @@ pub struct RelatedParties {
 
 /// Parse ISO 20022 XML message
 pub fn parse_iso20022(xml: &str) -> IsoResult<Iso20022Document> {
-    from_str(xml).map_err(|e| IsoError::XmlError(e.to_string()))
+    from_str(xml).map_err(|e| IsoError::XmlParseError(e.to_string()))
 }
 
 /// Serialize ISO 20022 message to XML
 pub fn serialize_iso20022(doc: &Iso20022Document) -> IsoResult<String> {
-    to_string(doc).map_err(|e| IsoError::XmlError(e.to_string()))
+    to_string(doc).map_err(|e| IsoError::XmlParseError(e.to_string()))
 }
 
 /// Create a credit transfer message (pacs.008)
@@ -885,20 +884,21 @@ pub fn create_credit_transfer(
     }
 }
 
-/// Generate UUID v4 (simplified)
+/// Generate a RFC 4122 UUID v4 from cryptographically random bytes.
 fn uuid_v4() -> String {
-    use std::time::{SystemTime, UNIX_EPOCH};
-    let now = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap()
-        .as_nanos();
+    use rand::RngCore;
+    let mut bytes = [0u8; 16];
+    rand::thread_rng().fill_bytes(&mut bytes);
+    // Set version bits (4) at octet 6, variant bits (10) at octet 8.
+    bytes[6] = (bytes[6] & 0x0f) | 0x40;
+    bytes[8] = (bytes[8] & 0x3f) | 0x80;
     format!(
-        "{:08x}-{:04x}-4{:03x}-{:04x}-{:012x}",
-        (now >> 96) as u32,
-        ((now >> 80) & 0xFFFF) as u16,
-        ((now >> 68) & 0x0FFF) as u16,
-        (((now >> 52) & 0x3FFF) | 0x8000) as u16,
-        (now & 0xFFFFFFFFFFFF) as u64
+        "{}-{}-{}-{}-{}",
+        hex::encode(&bytes[0..4]),
+        hex::encode(&bytes[4..6]),
+        hex::encode(&bytes[6..8]),
+        hex::encode(&bytes[8..10]),
+        hex::encode(&bytes[10..16]),
     )
 }
 

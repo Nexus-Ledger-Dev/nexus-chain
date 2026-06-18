@@ -12,7 +12,7 @@ async fn main() {
     let cli = Cli::parse_args();
     
     // Initialize logging
-    let subscriber = FmtSubscriber::builder()
+    let _subscriber = FmtSubscriber::builder()
         .with_max_level(match cli.log_level.as_str() {
             "trace" => Level::TRACE,
             "debug" => Level::DEBUG,
@@ -204,19 +204,32 @@ async fn show_status(rpc: String) -> Result<(), Box<dyn std::error::Error>> {
 
 fn import_genesis(genesis: PathBuf) -> Result<(), Box<dyn std::error::Error>> {
     info!("Importing genesis from: {:?}", genesis);
-    
-    // TODO: Implement genesis import
-    info!("Genesis import not yet implemented");
-    
+
+    let state = std::sync::Arc::new(nexus_evm::StateDb::new());
+    let pos = std::sync::Arc::new(nexus_consensus::ProofOfStake::default());
+
+    nexus_node::genesis::load_genesis_file(&genesis, &state, &pos)?;
+
+    // Persist the node's genesis.json to its default data directory so that
+    // the next `nexus start` picks it up automatically.
+    let dest = NodeConfig::default().data_dir.join("genesis.json");
+    std::fs::create_dir_all(dest.parent().unwrap())?;
+    std::fs::copy(&genesis, &dest)?;
+    info!("Genesis written to {}", dest.display());
+
     Ok(())
 }
 
 fn export_data(output: PathBuf, format: String) -> Result<(), Box<dyn std::error::Error>> {
-    info!("Exporting data to: {:?} (format: {})", output, format);
-    
-    // TODO: Implement data export
-    info!("Data export not yet implemented");
-    
+    info!("Exporting state snapshot to {:?} (format: {})", output, format);
+
+    let state = std::sync::Arc::new(nexus_evm::StateDb::new());
+    let pos = std::sync::Arc::new(nexus_consensus::ProofOfStake::default());
+
+    let config = nexus_node::genesis::export_genesis(&state, &pos, 1337, "NexusChain");
+    nexus_node::genesis::write_genesis_file(&output, &config)?;
+    info!("Snapshot written to {}", output.display());
+
     Ok(())
 }
 
@@ -224,14 +237,14 @@ async fn run_benchmarks(bench_type: String, iterations: u64) -> Result<(), Box<d
     info!("Running benchmarks: {} ({} iterations)", bench_type, iterations);
     
     use std::time::Instant;
-    use nexus_dag::{Dag, Vertex};
+    use nexus_dag::{Dag, DagConfig, Vertex};
     use nexus_primitives::{Address, Hash};
-    
+
     match bench_type.as_str() {
         "dag" | "all" => {
             info!("Benchmarking DAG operations...");
-            
-            let dag = Dag::new();
+
+            let dag = Dag::new(DagConfig::default());
             let proposer = Address::new([1u8; 20]);
             
             let start = Instant::now();

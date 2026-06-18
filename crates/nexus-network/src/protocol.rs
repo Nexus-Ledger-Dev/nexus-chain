@@ -3,7 +3,7 @@
 use serde::{Deserialize, Serialize};
 use nexus_primitives::{Hash, Transaction};
 use nexus_dag::Vertex;
-use nexus_consensus::{BftMessage, Proposal};
+use nexus_consensus::BftMessage;
 
 /// Protocol version
 pub const PROTOCOL_VERSION: u32 = 1;

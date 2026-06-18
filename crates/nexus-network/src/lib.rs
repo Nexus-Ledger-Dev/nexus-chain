@@ -9,6 +9,8 @@ pub mod protocol;
 pub mod gossip;
 pub mod sync;
 pub mod peer;
+#[cfg(feature = "p2p-network")]
+pub mod service;
 
 pub use protocol::*;
 pub use gossip::*;

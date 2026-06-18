@@ -7,10 +7,16 @@ pub mod methods;
 pub mod types;
 pub mod eth;
 pub mod nexus;
+pub mod mempool;
 
 pub use server::*;
 pub use methods::*;
 pub use types::*;
+
+/// Shared peer-count counter — the node layer increments/decrements this as
+/// peers connect and disconnect; the RPC layer reads it for net_peerCount and
+/// eth_syncing without depending on nexus-network directly.
+pub type PeerCounter = std::sync::Arc<std::sync::atomic::AtomicUsize>;
 
 use thiserror::Error;
 

@@ -1,6 +1,5 @@
 //! Storage layer
 
-use std::sync::Arc;
 use dashmap::DashMap;
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
@@ -127,7 +126,7 @@ impl StateDb {
     pub fn set_code(&self, address: &Address, code: Vec<u8>) {
         use sha3::{Digest, Keccak256};
         
-        let code_hash = Hash::new(Keccak256::digest(&code).as_slice().try_into().unwrap());
+        let code_hash = Hash::from(Keccak256::digest(&code).as_ref());
         self.code.insert(code_hash.clone(), code);
         
         let mut account = self.get_account(address);

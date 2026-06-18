@@ -15,6 +15,7 @@ nexus-dag = { path = "../nexus-dag" }
 nexus-consensus = { path = "../nexus-consensus" }
 nexus-evm = { path = "../nexus-evm" }
 nexus-zkp = { path = "../nexus-zkp" }
+nexus-state = { path = "../nexus-state" }
 # nexus-iso = { path = "../nexus-iso" }
 nexus-network = { path = "../nexus-network" }
 nexus-rpc = { path = "../nexus-rpc" }
@@ -38,14 +39,22 @@ tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
 # Storage
 rocksdb = { version = "0.21", optional = true }
 
+# HTTP client (for CLI status queries)
+reqwest = { version = "0.11", features = ["json"] }
+
 # Utilities
 thiserror = "1"
 hex = "0.4"
 directories = "5"
+parking_lot = "0.12"
 
 [features]
 default = []
 rocksdb = ["dep:rocksdb"]
+zkp = ["nexus-evm/zkp"]
+iso-compliance = ["nexus-evm/iso-compliance"]
+p2p-network = ["nexus-network/p2p-network"]
+ethereum-compat = ["nexus-state/ethereum-compat", "nexus-primitives/ethereum-compat"]
 
 [dev-dependencies]
 tempfile = "3"

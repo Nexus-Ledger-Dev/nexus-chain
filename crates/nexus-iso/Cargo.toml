@@ -14,3 +14,6 @@ thiserror = { workspace = true }
 tracing = { workspace = true }
 regex = "1.10"
 chrono = { version = "0.4", features = ["serde"] }
+rand = "0.8"
+hex = "0.4"
+tokio = { version = "1", features = ["sync", "macros", "rt"] }

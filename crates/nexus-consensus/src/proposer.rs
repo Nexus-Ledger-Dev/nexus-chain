@@ -7,8 +7,8 @@ use parking_lot::RwLock;
 use tokio::sync::mpsc;
 use tracing::{debug, info, warn};
 
-use nexus_primitives::{Address, Hash, Transaction, TxType, Nonce, U256};
-use nexus_dag::{Dag, Vertex, VertexStatus};
+use nexus_primitives::{Address, Hash, Transaction, TxType};
+use nexus_dag::{Dag, Vertex};
 use crate::{ConsensusResult, ConsensusError, BftConsensus, ProofOfStake};
 
 /// Configuration for vertex proposer
@@ -320,6 +320,7 @@ impl TxPriority {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use nexus_primitives::{Nonce, U256};
     
     #[test]
     fn test_transaction_pool() {

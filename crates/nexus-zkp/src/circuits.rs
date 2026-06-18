@@ -9,10 +9,7 @@ use ark_r1cs_std::{
     boolean::Boolean,
     eq::EqGadget,
     fields::fp::FpVar,
-    uint8::UInt8,
-    ToBitsGadget,
 };
-use ark_bn254::Fr;
 use ark_r1cs_std::select::CondSelectGadget;
 use std::marker::PhantomData;
 
@@ -224,24 +221,24 @@ impl<F: PrimeField> ComplianceCircuit<F> {
 impl<F: PrimeField> ConstraintSynthesizer<F> for ComplianceCircuit<F> {
     fn generate_constraints(self, cs: ConstraintSystemRef<F>) -> Result<(), SynthesisError> {
         // Public inputs
-        let identity_commitment = FpVar::new_input(cs.clone(), || {
+        let _identity_commitment = FpVar::new_input(cs.clone(), || {
             self.identity_commitment.ok_or(SynthesisError::AssignmentMissing)
         })?;
-        
-        let current_time = FpVar::new_input(cs.clone(), || {
+
+        let _current_time = FpVar::new_input(cs.clone(), || {
             self.current_time.ok_or(SynthesisError::AssignmentMissing)
         })?;
-        
-        let daily_limit = FpVar::new_input(cs.clone(), || {
+
+        let _daily_limit = FpVar::new_input(cs.clone(), || {
             self.daily_limit.ok_or(SynthesisError::AssignmentMissing)
         })?;
-        
+
         // Private inputs
-        let kyc_expiry = FpVar::new_witness(cs.clone(), || {
+        let _kyc_expiry = FpVar::new_witness(cs.clone(), || {
             self.kyc_expiry.ok_or(SynthesisError::AssignmentMissing)
         })?;
-        
-        let amount = FpVar::new_witness(cs.clone(), || {
+
+        let _amount = FpVar::new_witness(cs.clone(), || {
             self.amount.ok_or(SynthesisError::AssignmentMissing)
         })?;
         
@@ -316,7 +313,7 @@ impl<F: PrimeField> ConstraintSynthesizer<F> for BalanceProofCircuit<F> {
             self.balance_commitment.ok_or(SynthesisError::AssignmentMissing)
         })?;
         
-        let minimum_required = FpVar::new_input(cs.clone(), || {
+        let _minimum_required = FpVar::new_input(cs.clone(), || {
             self.minimum_required.ok_or(SynthesisError::AssignmentMissing)
         })?;
         

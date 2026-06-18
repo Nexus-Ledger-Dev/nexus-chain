@@ -10,6 +10,7 @@ pub mod state;
 pub mod precompiles;
 pub mod gas;
 pub mod receipt;
+pub mod revm_db;
 
 pub use executor::*;
 pub use state::*;

@@ -111,7 +111,7 @@ impl RoutingCondition {
 }
 
 /// Context extracted from message for routing decisions
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct MessageContext {
     pub message_type: Option<MessageType>,
     pub currency: Option<String>,
@@ -126,33 +126,37 @@ pub struct MessageContext {
 
 impl From<&CreditTransferMessage> for MessageContext {
     fn from(msg: &CreditTransferMessage) -> Self {
+        let tx = msg.credit_transfer_transactions.first();
         MessageContext {
             message_type: Some(MessageType::CreditTransfer),
-            currency: Some(msg.currency.clone()),
-            amount: Some(msg.amount),
-            creditor_country: msg.creditor_account.as_ref()
+            currency: tx.map(|t| t.interbank_settlement_amount.currency.clone()),
+            amount: tx.and_then(|t| t.interbank_settlement_amount.value.parse().ok()),
+            creditor_country: tx
+                .and_then(|t| t.creditor_account.iban.as_ref())
                 .and_then(|a| a.get(0..2).map(|s| s.to_string())),
-            debtor_country: msg.debtor_account.as_ref()
+            debtor_country: tx
+                .and_then(|t| t.debtor_account.iban.as_ref())
                 .and_then(|a| a.get(0..2).map(|s| s.to_string())),
-            creditor_bic: msg.creditor_agent_bic.clone(),
-            debtor_bic: msg.debtor_agent_bic.clone(),
-            creditor_iban: msg.creditor_account.clone(),
-            debtor_iban: msg.debtor_account.clone(),
+            creditor_bic: tx.and_then(|t| t.creditor_agent.bic.clone()),
+            debtor_bic: tx.and_then(|t| t.debtor_agent.bic.clone()),
+            creditor_iban: tx.and_then(|t| t.creditor_account.iban.clone()),
+            debtor_iban: tx.and_then(|t| t.debtor_account.iban.clone()),
         }
     }
 }
 
 impl From<&Iso8583Message> for MessageContext {
     fn from(msg: &Iso8583Message) -> Self {
+        use crate::iso8583::MessageType as IsoMti;
         MessageContext {
-            message_type: Some(match &msg.mti {
-                mti if mti.starts_with("01") => MessageType::CardAuthorization,
-                mti if mti.starts_with("02") => MessageType::CardFinancial,
-                mti if mti.starts_with("04") => MessageType::CardReversal,
-                _ => MessageType::CardAuthorization,
+            message_type: Some(match msg.mti {
+                IsoMti::AuthorizationRequest | IsoMti::AuthorizationResponse => MessageType::CardAuthorization,
+                IsoMti::FinancialRequest | IsoMti::FinancialResponse => MessageType::CardFinancial,
+                IsoMti::ReversalRequest | IsoMti::ReversalResponse => MessageType::CardReversal,
+                IsoMti::NetworkManagementRequest | IsoMti::NetworkManagementResponse => MessageType::CardAuthorization,
             }),
-            currency: msg.fields.get(&49).cloned(),
-            amount: msg.fields.get(&4).and_then(|a| a.parse().ok()),
+            currency: msg.get_element_string(49),
+            amount: msg.get_element_string(4).and_then(|a| a.parse().ok()),
             ..Default::default()
         }
     }

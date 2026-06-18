@@ -6,7 +6,7 @@ members = [
     "crates/nexus-consensus",
     "crates/nexus-evm",
     "crates/nexus-zkp",
-#    "crates/nexus-iso",
+    "crates/nexus-iso",
     "crates/nexus-state",
     "crates/nexus-network",
     "crates/nexus-rpc",

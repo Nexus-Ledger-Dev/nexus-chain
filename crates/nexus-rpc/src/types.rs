@@ -236,7 +236,7 @@ pub fn parse_address(s: &str) -> Option<Address> {
     if bytes.len() != 20 {
         return None;
     }
-    Some(Address::from_slice(&bytes))
+    Address::from_slice(&bytes)
 }
 
 pub fn parse_hash(s: &str) -> Option<Hash> {
@@ -245,7 +245,7 @@ pub fn parse_hash(s: &str) -> Option<Hash> {
     if bytes.len() != 32 {
         return None;
     }
-    Some(Hash::from_slice(&bytes))
+    Hash::from_slice(&bytes)
 }
 
 pub fn parse_bytes(s: &str) -> Option<Vec<u8>> {

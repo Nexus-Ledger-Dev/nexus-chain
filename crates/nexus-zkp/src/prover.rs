@@ -5,14 +5,14 @@ use crate::{
     ZkpError, ZkpResult,
 };
 use ark_bn254::{Bn254, Fr};
-use ark_groth16::{Groth16, PreparedVerifyingKey, Proof, ProvingKey};
+use ark_groth16::{Groth16, Proof, ProvingKey};
 use ark_ff::PrimeField;
 use ark_snark::SNARK;
 use ark_serialize::{CanonicalDeserialize, CanonicalSerialize};
 use ark_std::rand::thread_rng;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
-use tracing::{debug, info};
+use tracing::info;
 
 /// Serialized proof data
 #[derive(Clone, Debug, Serialize, Deserialize)]

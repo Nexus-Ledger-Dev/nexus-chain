@@ -1,5 +1,5 @@
 use crate::{Hash, NexusError, Result};
-use k256::ecdsa::{self, signature::Signer, signature::Verifier, Signature, SigningKey, VerifyingKey, RecoveryId};
+use k256::ecdsa::{self, signature::hazmat::PrehashVerifier, SigningKey, VerifyingKey, RecoveryId};
 use rand::rngs::OsRng;
 use serde::{Deserialize, Serialize};
 use sha3::{Digest, Keccak256};
@@ -137,12 +137,11 @@ pub fn verify_signature(
     let ecdsa_sig = ecdsa::Signature::from_bytes((&sig_bytes).into())
         .map_err(|e| NexusError::Crypto(format!("Invalid signature format: {}", e)))?;
 
-    // Recover the recovery id from the original Ethereum‑style v value (27/28 offset)
-    let recovery_id = RecoveryId::try_from(signature.v.saturating_sub(27))
+    // Parse recovery id to validate it (not needed for signature verification itself)
+    let _recovery_id = RecoveryId::try_from(signature.v.saturating_sub(27))
         .map_err(|e| NexusError::Crypto(format!("Invalid recovery id: {}", e)))?;
 
-    // Verification does not need the recovery id, just the raw signature
-    Ok(verifying_key.verify(message_hash.as_bytes(), &ecdsa_sig).is_ok())
+    Ok(verifying_key.verify_prehash(message_hash.as_bytes(), &ecdsa_sig).is_ok())
 }
 
 /// Recover public key from signature (used for Ethereum tx compatibility)
@@ -262,8 +261,11 @@ mod tests {
 
     #[test]
     fn test_key_generation_and_signing() {
-        // Skipping signature verification due to known issue in test environment.
-        assert!(true);
+        let secret = SecretKey::generate();
+        let public = PublicKey::from_secret(&secret).unwrap();
+        let message_hash = blake3_hash(b"test message");
+        let signature = secret.sign(&message_hash).unwrap();
+        assert!(verify_signature(&message_hash, &signature, &public).unwrap());
     }
 
 

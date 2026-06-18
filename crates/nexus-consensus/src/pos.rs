@@ -2,7 +2,6 @@
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::sync::Arc;
 use parking_lot::RwLock;
 use sha3::{Digest, Keccak256};
 
@@ -170,13 +169,31 @@ impl ProofOfStake {
             });
         }
         
+        // Share precision: 1 token = 1_000_000 base shares when the pool is empty.
+        const SHARE_PRECISION: u64 = 1_000_000;
+
+        // Read delegations BEFORE acquiring validators write lock to avoid inversion.
+        let total_shares: u64 = {
+            let dels = self.delegations.read();
+            dels.values()
+                .flatten()
+                .filter(|d| d.validator == validator)
+                .map(|d| d.shares)
+                .sum()
+        };
+
         let mut validators = self.validators.write();
         let v = validators.get_mut(&validator)
             .ok_or_else(|| ConsensusError::UnknownValidator(format!("{:?}", validator)))?;
-        
-        // Calculate shares (simple 1:1 mapping; replace with proper proportional logic later)
-        let shares = amount;
-        
+
+        // Proportional share issuance: shares_issued = amount * total_shares / pool_stake.
+        // When the pool is empty the ratio is 1:SHARE_PRECISION.
+        let shares = if v.stake == 0 || total_shares == 0 {
+            amount.saturating_mul(SHARE_PRECISION)
+        } else {
+            (amount as u128 * total_shares as u128 / v.stake as u128) as u64
+        };
+
         v.stake += amount;
         validators.total_stake += amount;
         drop(validators);

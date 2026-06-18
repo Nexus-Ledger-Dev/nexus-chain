@@ -1,7 +1,6 @@
 //! State checkpointing for DAG state management
 
 use std::collections::HashMap;
-use std::sync::Arc;
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
 
@@ -186,7 +185,7 @@ impl CheckpointManager {
                 StateChange::StorageChange { address, key, new_value, .. } => {
                     state.set_storage(address, key.clone(), new_value.clone());
                 }
-                StateChange::AccountCreated { address } => {
+                StateChange::AccountCreated { address: _ } => {
                     // Account already exists if we're applying changes
                 }
                 StateChange::AccountDeleted { address, .. } => {

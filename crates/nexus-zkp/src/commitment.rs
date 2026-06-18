@@ -1,11 +1,9 @@
 //! Pedersen commitments for value hiding
 
 use ark_bn254::{Fr, G1Affine, G1Projective};
-use ark_ec::{AffineRepr, CurveGroup, Group};
-use ark_ff::PrimeField;
+use ark_ec::CurveGroup;
 use ark_std::{rand::Rng, UniformRand};
 use serde::{Deserialize, Serialize};
-use crate::{ZkpError, ZkpResult};
 
 /// Generator points for Pedersen commitments
 pub struct PedersenGenerators {
